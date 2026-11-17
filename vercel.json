@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "regions": ["icn1"],
+  "regions": ["hnd1"],
   "redirects": [
     {
       "source": "/:path*",

@@ -25,7 +25,8 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const result = await searchNationwide({ keyword, hubIdParam, shardParam, customHubsParam, groupsParam });
+    const effectiveShard = (!shardParam && !hubIdParam) ? '1' : shardParam;
+    const result = await searchNationwide({ keyword, hubIdParam, shardParam: effectiveShard, customHubsParam, groupsParam });
     res.statusCode = 200;
     res.end(JSON.stringify(result));
   } catch (err) {
