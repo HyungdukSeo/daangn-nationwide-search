@@ -1006,24 +1006,19 @@
         searchBtn.disabled = false;
         searchBtn.textContent = '검색';
 
-        // 2차~3차 백그라운드 연속 수집 (과거 거래완료 Closed 내역이 모두 나올 때까지 자동 반복)
-        const maxExtraPasses = 2;
-        for (let pass = 1; pass <= maxExtraPasses; pass++) {
-          if (myToken !== activeSearchToken) return;
-          const closedCount = allArticles.filter(a => a.status !== 'Ongoing').length;
-          elapsedText.textContent = `🔄 과거 거래완료 내역 추가 수집 중... (${pass}/${maxExtraPasses}회차, 현재 ${allArticles.length}건)`;
-
-          const extraRes = await fetch(`/api/search?${params.toString()}`);
-          if (!extraRes.ok || myToken !== activeSearchToken) break;
-          const extraData = await extraRes.json();
-          const newlyAdded = mergeArticlesIntoMap(prevMap, extraData.articles);
-          allArticles = Array.from(prevMap.values());
-          renderAll();
-
-          // 더 이상 새로 추가되는 과거 거래완료 매물이 없고 이미 거래완료 내역이 충분히 확보되었으면 조기 종료
-          const newClosedCount = allArticles.filter(a => a.status !== 'Ongoing').length;
-          if (newlyAdded === 0 && newClosedCount > 0 && newClosedCount === closedCount) {
-            break;
+        // 1차 조회에서 과거 거래완료(Closed) 내역이 아직 적게 들어온 경우, 자동으로 2번째 조회를 1회 더 실행하여 과거 내역 확보
+        const initialClosedCount = allArticles.filter(a => a.status !== 'Ongoing').length;
+        if (initialClosedCount < 5 && myToken === activeSearchToken) {
+          elapsedText.textContent = `🔄 과거 거래완료 내역 자동 추가 조회 중... (현재 ${allArticles.length}건)`;
+          await new Promise(r => setTimeout(r, 600));
+          if (myToken === activeSearchToken) {
+            const extraRes = await fetch(`/api/search?${params.toString()}`);
+            if (extraRes.ok && myToken === activeSearchToken) {
+              const extraData = await extraRes.json();
+              mergeArticlesIntoMap(prevMap, extraData.articles);
+              allArticles = Array.from(prevMap.values());
+              renderAll();
+            }
           }
         }
 
