@@ -6,7 +6,8 @@ const { DEFAULT_HUBS, searchNationwide, searchRegionsByKeyword } = require('./li
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(async (req, res) => {
-  const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = parsedUrl.pathname.replace(/\.js$/, '');
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -19,14 +20,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 1. 기본 거점 목록 조회 API
-  if (parsedUrl.pathname === '/api/hubs') {
+  if (pathname === '/api/hubs') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ hubs: DEFAULT_HUBS }));
     return;
   }
 
   // 2. 당근 동네 키워드 검색 API 프록시
-  if (parsedUrl.pathname === '/api/regions') {
+  if (pathname === '/api/regions') {
     const keyword = (parsedUrl.searchParams.get('q') || '').trim();
     try {
       const data = await searchRegionsByKeyword(keyword);
@@ -40,7 +41,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 3. 전국 통합 검색 API
-  if (parsedUrl.pathname === '/api/search') {
+  if (pathname === '/api/search') {
     const keyword = (parsedUrl.searchParams.get('q') || '').trim();
     const customHubsParam = parsedUrl.searchParams.get('customHubs');
     const groupsParam = parsedUrl.searchParams.get('groups');
@@ -63,9 +64,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 4. 정적 파일 서빙 (public/index.html)
-  const filePath = parsedUrl.pathname === '/'
+  const filePath = pathname === '/'
     ? path.join(__dirname, 'public', 'index.html')
-    : path.join(__dirname, 'public', parsedUrl.pathname);
+    : path.join(__dirname, 'public', pathname);
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
     const ext = path.extname(filePath).toLowerCase();
@@ -78,14 +79,18 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain; charset=utf-8' });
     fs.createReadStream(filePath).pipe(res);
   } else {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('Not Found');
+    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ error: 'Not Found', path: pathname }));
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(` 🥕 당근 전국 통합 검색 서버가 실행되었습니다!`);
-  console.log(` 👉 접속 주소: http://localhost:${PORT}`);
-  console.log(`====================================================`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`====================================================`);
+    console.log(` 🥕 당근 전국 통합 검색 서버가 실행되었습니다!`);
+    console.log(` 👉 접속 주소: http://localhost:${PORT}`);
+    console.log(`====================================================`);
+  });
+}
+
+module.exports = server;
