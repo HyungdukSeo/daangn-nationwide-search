@@ -1536,7 +1536,7 @@
           const tipTitle = escapeHtml(item.title);
           const tipRegion = escapeHtml(item.dongName || item.hubLabel);
           const tipPrice = escapeHtml(formatPrice(item.price));
-          const tipStatus = item.status === 'Closed' ? '거래완료' : item.status === 'Reserved' ? '예약중' : '판매중';
+          const tipStatus = item.status === 'Vanished' ? '판매완료 추정' : item.status === 'Closed' ? '거래완료' : item.status === 'Reserved' ? '예약중' : '판매중';
 
           dotsHtml += `
             <circle
@@ -1879,6 +1879,11 @@
       });
     }
 
+    function vanishedTitle(item) {
+      const d = ts => ts ? new Date(ts).toLocaleDateString('ko-KR') : '?';
+      return `마지막 확인 ${d(item.lastSeenAt)} · ${d(item.vanishedAt)} 검색에서 목록에 보이지 않음 (판매완료·예약 또는 목록 밀림)`;
+    }
+
     function renderAll() {
       renderRegionTabs();
       if (!currentKeyword) return;
@@ -1962,7 +1967,7 @@
                 ${item.isExactMatch ? `<span class="badge badge-exact">정확일치</span>` : ''}
                 ${item.isBuyingPost ? `<span class="badge badge-buy">삽니다</span>` : ''}
                 ${item.isInstantBuyAvailable ? `<span class="badge badge-instant">안심결제</span>` : ''}
-                ${item.status === 'Closed' ? `<span class="badge badge-reserved">거래완료</span>` : item.status === 'Reserved' ? `<span class="badge badge-reserved">예약중</span>` : item.status && item.status !== 'Ongoing' ? `<span class="badge badge-reserved">${escapeHtml(item.status)}</span>` : ''}
+                ${item.status === 'Vanished' ? `<span class="badge badge-reserved" title="${escapeHtml(vanishedTitle(item))}">판매완료 추정</span>` : item.status === 'Closed' ? `<span class="badge badge-reserved">거래완료</span>` : item.status === 'Reserved' ? `<span class="badge badge-reserved">예약중</span>` : item.status && item.status !== 'Ongoing' ? `<span class="badge badge-reserved">${escapeHtml(item.status)}</span>` : ''}
               </div>
             </div>
             <div class="card-body">
@@ -1989,6 +1994,11 @@
           addedCount++;
         } else {
           const existing = targetMap.get(item.id);
+          if (existing.status === 'Vanished') {
+            // 이전에 "사라짐"으로 표시됐지만 다시 검색 목록에 나타났으므로 최신 정보로 교체
+            targetMap.set(item.id, item);
+            continue;
+          }
           if (item.dongName && existing.dongName && !existing.dongName.includes(item.dongName)) {
             existing.dongName = `${existing.dongName} · ${item.dongName}`;
           }
@@ -1999,6 +2009,100 @@
         }
       }
       return addedCount;
+    }
+
+    // ===== 매물 이력 (브라우저 localStorage, 키워드·검색범위별) =====
+    // 서버(당근 웹)는 판매중 매물만 내려주므로, 이전에 본 매물이 이번 정상 조회에서 사라지면 "판매완료 추정"으로 표시한다.
+    const HISTORY_PREFIX = 'daangnHist:v1:';
+    const HISTORY_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+    const HISTORY_MAX_ITEMS = 800;
+
+    function loadHistory(key) {
+      const map = new Map();
+      try {
+        const raw = localStorage.getItem(HISTORY_PREFIX + key);
+        if (!raw) return map;
+        const parsed = JSON.parse(raw);
+        const now = Date.now();
+        for (const it of (parsed.items || [])) {
+          if (it && it.id && now - (it.lastSeenAt || 0) <= HISTORY_TTL_MS) map.set(it.id, it);
+        }
+      } catch {}
+      return map;
+    }
+
+    function saveHistory(key, map) {
+      let items = Array.from(map.values())
+        .sort((a, b) => (b.lastSeenAt || 0) - (a.lastSeenAt || 0))
+        .slice(0, HISTORY_MAX_ITEMS);
+      const write = () => localStorage.setItem(HISTORY_PREFIX + key, JSON.stringify({ savedAt: Date.now(), items }));
+      try {
+        write();
+        return true;
+      } catch {
+        // 용량 초과: 가장 오래 저장된 다른 키워드 이력부터 지우며 재시도
+        try {
+          const others = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || !k.startsWith(HISTORY_PREFIX) || k === HISTORY_PREFIX + key) continue;
+            let savedAt = 0;
+            try { savedAt = JSON.parse(localStorage.getItem(k)).savedAt || 0; } catch {}
+            others.push({ k, savedAt });
+          }
+          others.sort((a, b) => a.savedAt - b.savedAt);
+          for (const o of others) {
+            localStorage.removeItem(o.k);
+            try { write(); return true; } catch {}
+          }
+          items = items.slice(0, Math.floor(items.length / 2));
+          write();
+          return true;
+        } catch {
+          return false; // 저장 불가(시크릿 모드 등)여도 검색 자체는 정상 동작
+        }
+      }
+    }
+
+    function compactForHistory(article, firstSeenAt, lastSeenAt) {
+      const { isLive, ...rest } = article;
+      return {
+        ...rest,
+        content: (rest.content || '').slice(0, 200),
+        firstSeenAt,
+        lastSeenAt,
+        vanishedAt: undefined,
+        serverStatus: undefined
+      };
+    }
+
+    // liveSeen: 이번 검색에서 당근에서 실제로 받은 매물, liveHubs: 정상 조회되어 매물이 온 거점, complete: 모든 샤드가 성공했는지
+    function updateHistory(history, liveSeen, liveHubs, complete) {
+      const now = Date.now();
+      for (const [id, a] of liveSeen) {
+        const old = history.get(id);
+        history.set(id, compactForHistory(a, old ? old.firstSeenAt || now : now, now));
+      }
+      if (complete) {
+        for (const [id, h] of history) {
+          if (liveSeen.has(id)) continue;
+          if (h.status !== 'Ongoing' || h.vanishedAt) continue;          // 이미 거래완료/예약중/사라짐 처리된 매물
+          if (h.sourceType === 'instant-buy') continue;                   // 전국택배 매물은 거점 기준 판정 불가
+          if (!liveHubs.has(String(h.hubId))) continue;                   // 그 거점이 이번에 정상 조회되지 않았으면 판정 보류
+          h.vanishedAt = now;
+          h.serverStatus = h.status;
+          h.status = 'Vanished';
+        }
+      }
+      return history;
+    }
+
+    // 이력 중 "더 이상 판매중이 아닌" 매물을 화면용 맵에 합침 (판매중이었으나 이번에 확인 못한 매물은 숨김)
+    function mergeHistoryIntoView(targetMap, history, liveSeen) {
+      for (const [id, h] of history) {
+        if (liveSeen.has(id) || h.status === 'Ongoing') continue;
+        targetMap.set(id, { ...h, isLive: false });
+      }
     }
 
     let isSearching = false;
@@ -2060,7 +2164,15 @@
       const searchWarnings = new Set();
       let failedHubsTotal = 0;
       let coverageNote = '';
+      const history = loadHistory(cacheKey);
+      const liveSeen = new Map();
+      const liveHubs = new Set();
+      let searchComplete = false;
+      let searchFailedShard = false;
+      let historySaved = false;
       const collectDiagnostics = (data) => {
+        for (const a of (data.articles || [])) if (a.isLive) liveSeen.set(a.id, a);
+        for (const h of (data.liveHubIds || [])) liveHubs.add(String(h));
         (data.warnings || []).forEach(w => searchWarnings.add(w));
         failedHubsTotal += data.failedHubCount || 0;
         if (data.schemaChanged) searchWarnings.add('모든 거점의 응답을 해석하지 못했습니다. "매물 없음"이 아니라 당근 페이지 구조 변경으로 인한 오류일 가능성이 높습니다.');
@@ -2149,6 +2261,8 @@
               }
             }
 
+            if (!fetchSuccess) searchFailedShard = true;
+
             // 다음 권역이 남아있는 경우 3초간 텀을 둠 (사용자 요청: 3초 텀 순차 조회)
             if (i < shards.length - 1 && myToken === activeSearchToken) {
               const nextShard = shards[i + 1];
@@ -2162,13 +2276,24 @@
         }
 
         if (myToken === activeSearchToken) {
+          searchComplete = !searchFailedShard;
+          updateHistory(history, liveSeen, liveHubs, searchComplete);
+          saveHistory(cacheKey, history);
+          historySaved = true;
+          mergeHistoryIntoView(prevMap, history, liveSeen);
+          sessionKeywordCache.set(cacheKey, prevMap);
+          allArticles = Array.from(prevMap.values());
+          renderAll();
+          const vanishedTotal = allArticles.filter(a => a.status === 'Vanished').length;
           const closedTotal = allArticles.filter(a => a.status !== 'Ongoing').length;
           elapsedText.innerHTML = selectedHubId === 'all'
-            ? `⚡ <strong>대표 거점 탐색 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`
-            : `⚡ <strong>${escapeHtml(selectedHubLabel)} 조회 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`;
+            ? `⚡ <strong>대표 거점 탐색 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중·판매완료 추정 ${closedTotal}건 포함)`
+            : `⚡ <strong>${escapeHtml(selectedHubLabel)} 조회 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중·판매완료 추정 ${closedTotal}건 포함)`;
           const notes = [];
           if (failedHubsTotal > 0) notes.push(`⚠️ ${failedHubsTotal}개 거점은 조회에 실패해 결과가 누락되었을 수 있습니다.`);
           searchWarnings.forEach(w => notes.push('⚠️ ' + w));
+          if (vanishedTotal > 0) notes.push(`ℹ️ 판매완료 추정 ${vanishedTotal}건은 이전 검색에서 보였다가 이번 정상 조회에서 목록에서 사라진 매물입니다(밀려났을 수도 있어 추정입니다).`);
+          if (!searchComplete) notes.push('ℹ️ 일부 권역 조회가 실패해 이번에는 "사라짐" 판정을 하지 않았습니다.');
           if (selectedHubId === 'all' && coverageNote) notes.push('ℹ️ ' + coverageNote);
           if (notes.length) {
             elapsedText.innerHTML += '<br><span style="font-size:0.85em;color:var(--text-sub);">' + notes.map(escapeHtml).join('<br>') + '</span>';
@@ -2182,6 +2307,12 @@
           </div>
         `;
       } finally {
+        if (!historySaved && liveSeen.size > 0) {
+          try {
+            updateHistory(history, liveSeen, liveHubs, false);
+            saveHistory(cacheKey, history);
+          } catch {}
+        }
         if (myToken === activeSearchToken) {
           isSearching = false;
           searchBtn.classList.remove('btn-stop');
