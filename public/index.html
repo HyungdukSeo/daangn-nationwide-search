@@ -842,6 +842,9 @@
         // relevance
         if (a.isExactMatch !== b.isExactMatch) return a.isExactMatch ? -1 : 1;
         if (a.isTitleMatch !== b.isTitleMatch) return a.isTitleMatch ? -1 : 1;
+        const aOngoing = a.status === 'Ongoing' ? 1 : 0;
+        const bOngoing = b.status === 'Ongoing' ? 1 : 0;
+        if (aOngoing !== bOngoing) return bOngoing - aOngoing;
         return new Date(b.boostedAt || b.createdAt || 0) - new Date(a.boostedAt || a.createdAt || 0);
       });
 
@@ -898,7 +901,7 @@
                 ${item.isExactMatch ? `<span class="badge badge-exact">정확일치</span>` : ''}
                 ${item.isBuyingPost ? `<span class="badge badge-buy">삽니다</span>` : ''}
                 ${item.isInstantBuyAvailable ? `<span class="badge badge-instant">안심결제</span>` : ''}
-                ${item.status && item.status !== 'Ongoing' ? `<span class="badge badge-reserved">${escapeHtml(item.status)}</span>` : ''}
+                ${item.status === 'Closed' ? `<span class="badge badge-reserved">거래완료</span>` : item.status === 'Reserved' ? `<span class="badge badge-reserved">예약중</span>` : item.status && item.status !== 'Ongoing' ? `<span class="badge badge-reserved">${escapeHtml(item.status)}</span>` : ''}
               </div>
             </div>
             <div class="card-body">
