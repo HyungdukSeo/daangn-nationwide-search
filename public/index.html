@@ -2057,6 +2057,15 @@
 
       const cacheKey = `${q.toLowerCase()}::${selectedHubId}`;
       const prevMap = sessionKeywordCache.get(cacheKey) || new Map();
+      const searchWarnings = new Set();
+      let failedHubsTotal = 0;
+      let coverageNote = '';
+      const collectDiagnostics = (data) => {
+        (data.warnings || []).forEach(w => searchWarnings.add(w));
+        failedHubsTotal += data.failedHubCount || 0;
+        if (data.schemaChanged) searchWarnings.add('모든 거점의 응답을 해석하지 못했습니다. "매물 없음"이 아니라 당근 페이지 구조 변경으로 인한 오류일 가능성이 높습니다.');
+        if (data.coverageNote) coverageNote = data.coverageNote;
+      };
 
       try {
         if (selectedHubId !== 'all') {
@@ -2067,6 +2076,7 @@
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
           if (myToken !== activeSearchToken) return;
+          collectDiagnostics(data);
           mergeArticlesIntoMap(prevMap, data.articles);
           sessionKeywordCache.set(cacheKey, prevMap);
           allArticles = Array.from(prevMap.values());
@@ -2106,8 +2116,17 @@
                 if (myToken !== activeSearchToken) return;
                 currentAbortController = new AbortController();
                 const res = await fetch(`/api/search?${params.toString()}`, { signal: currentAbortController.signal });
+                if (res.status === 429 || res.status === 403) {
+                  // 속도 제한/차단은 재시도해도 의미가 없으므로 전체 탐색을 중단하고 사유를 보여줌
+                  let msg = '요청이 제한되었습니다. 잠시 후 다시 시도해 주세요.';
+                  try { msg = (await res.json()).error || msg; } catch {}
+                  const fatal = new Error(msg);
+                  fatal.fatal = true;
+                  throw fatal;
+                }
                 if (res.ok && myToken === activeSearchToken) {
                   const data = await res.json();
+                  collectDiagnostics(data);
                   mergeArticlesIntoMap(prevMap, data.articles);
                   sessionKeywordCache.set(cacheKey, prevMap);
                   allArticles = Array.from(prevMap.values());
@@ -2121,6 +2140,7 @@
                 }
               } catch (fetchErr) {
                 if (myToken !== activeSearchToken) return;
+                if (fetchErr.fatal) throw fetchErr;
                 if (retry === 0) {
                   await new Promise(r => setTimeout(r, 800));
                 } else {
@@ -2144,8 +2164,15 @@
         if (myToken === activeSearchToken) {
           const closedTotal = allArticles.filter(a => a.status !== 'Ongoing').length;
           elapsedText.innerHTML = selectedHubId === 'all'
-            ? `⚡ <strong>전국 69개 거점 전체 탐색 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`
+            ? `⚡ <strong>대표 거점 탐색 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`
             : `⚡ <strong>${escapeHtml(selectedHubLabel)} 조회 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`;
+          const notes = [];
+          if (failedHubsTotal > 0) notes.push(`⚠️ ${failedHubsTotal}개 거점은 조회에 실패해 결과가 누락되었을 수 있습니다.`);
+          searchWarnings.forEach(w => notes.push('⚠️ ' + w));
+          if (selectedHubId === 'all' && coverageNote) notes.push('ℹ️ ' + coverageNote);
+          if (notes.length) {
+            elapsedText.innerHTML += '<br><span style="font-size:0.85em;color:var(--text-sub);">' + notes.map(escapeHtml).join('<br>') + '</span>';
+          }
         }
       } catch (err) {
         if (myToken !== activeSearchToken) return;

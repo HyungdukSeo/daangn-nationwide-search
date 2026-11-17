@@ -1,13 +1,16 @@
 const { DEFAULT_HUBS, searchNationwide, searchRegionsByKeyword } = require('../../lib/daangn');
+const { guard } = require('../../lib/guard');
 
 exports.handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'application/json; charset=utf-8'
-  };
-
   const path = event.path || '';
   const params = event.queryStringParameters || {};
+  const route = path.endsWith('/search') ? 'search' : path.endsWith('/regions') ? 'regions' : 'hubs';
+
+  const g = guard({ headers: event.headers || {}, route });
+  const headers = { ...g.headers, 'Content-Type': 'application/json; charset=utf-8' };
+  if (!g.ok) {
+    return { statusCode: g.status, headers, body: JSON.stringify({ error: g.error }) };
+  }
 
   try {
     if (path.endsWith('/hubs')) {
@@ -57,10 +60,13 @@ exports.handler = async (event) => {
       body: JSON.stringify({ error: 'Not Found' })
     };
   } catch (err) {
+    console.error('[netlify api]', err);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({ error: '요청 처리 중 오류가 발생했습니다.' })
     };
+  } finally {
+    g.release();
   }
 };
