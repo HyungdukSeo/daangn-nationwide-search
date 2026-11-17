@@ -46,7 +46,7 @@
     }
 
     .header-inner {
-      max-width: 1280px;
+      max-width: 1540px;
       margin: 0 auto;
       padding: 16px 20px;
       display: flex;
@@ -158,7 +158,7 @@
 
     /* 컨트롤 & 필터 바 */
     .controls-wrap {
-      max-width: 1280px;
+      max-width: 1540px;
       margin: 16px auto 0;
       padding: 0 20px;
       display: flex;
@@ -370,7 +370,7 @@
 
     /* 상태 요약 바 */
     .summary-bar {
-      max-width: 1280px;
+      max-width: 1540px;
       margin: 14px auto 8px;
       padding: 0 20px;
       display: flex;
@@ -384,17 +384,166 @@
       color: var(--text);
     }
 
-    /* 매물 그리드 */
+    /* 메인 2단 레이아웃 (좌측 매물 그리드 + 우측 시세 그래프 패널) */
     main {
-      max-width: 1280px;
+      max-width: 1540px;
       margin: 0 auto 60px;
       padding: 0 20px;
     }
 
+    .main-layout {
+      display: flex;
+      align-items: flex-start;
+      gap: 22px;
+    }
+
+    .left-Col {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .right-col {
+      width: 430px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 150px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    @media (max-width: 1100px) {
+      .main-layout {
+        flex-direction: column-reverse;
+      }
+      .right-col {
+        width: 100%;
+        position: static;
+      }
+    }
+
+    .chart-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+
+    .chart-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chart-panel-title {
+      font-size: 0.98rem;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chart-controls-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.84rem;
+    }
+
+    .chart-controls-bar select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 0.82rem;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .chart-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 0.74rem;
+      color: var(--text-sub);
+    }
+
+    .stat-val {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .stat-val.highlight-orange {
+      color: var(--primary);
+    }
+
+    .stat-val.highlight-blue {
+      color: #1967d2;
+    }
+
+    .chart-svg-wrap {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    .chart-empty {
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #adb5bd;
+      font-size: 0.85rem;
+      text-align: center;
+      background: #fcfcfd;
+      border-radius: 8px;
+      border: 1px dashed var(--border);
+      padding: 16px;
+    }
+
+    .chart-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(33, 37, 41, 0.94);
+      color: #fff;
+      padding: 8px 11px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      z-index: 9999;
+      max-width: 240px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+      display: none;
+    }
+
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+      gap: 16px;
     }
 
     .card {
@@ -745,9 +894,92 @@
   </div>
 
   <main>
-    <div id="stateContainer"></div>
-    <div id="resultsGrid" class="grid"></div>
+    <div class="main-layout">
+      <div class="left-Col">
+        <div id="stateContainer"></div>
+        <div id="resultsGrid" class="grid"></div>
+      </div>
+
+      <aside class="right-col" id="analyticsSidebar">
+        <div class="chart-controls-bar">
+          <span style="font-weight: 700; color: var(--text);">📅 시세 분석 기간</span>
+          <div style="display: flex; gap: 6px;">
+            <select id="chartRangeSelect" aria-label="조회 기간 범위">
+              <option value="all" selected>전체 기간</option>
+              <option value="30">최근 1개월</option>
+              <option value="90">최근 3개월</option>
+              <option value="180">최근 6개월</option>
+              <option value="365">최근 1년</option>
+            </select>
+            <select id="chartBucketSelect" aria-label="기간 구분 단위">
+              <option value="auto" selected>자동 구분</option>
+              <option value="day">일별</option>
+              <option value="week">주별</option>
+              <option value="month">월별</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 1. 실거래(거래완료) 그래프 -->
+        <div class="chart-panel">
+          <div class="chart-panel-header">
+            <div class="chart-panel-title">
+              <span>📊 실거래가 추이 그래프</span>
+              <span style="font-size: 0.75rem; font-weight: 600; color: #137333; background: #e6f4ea; padding: 2px 7px; border-radius: 999px;">거래완료·예약중</span>
+            </div>
+            <span style="font-size: 0.74rem; color: var(--text-sub);">점 클릭 시 매물 이동</span>
+          </div>
+          <div class="chart-stats" id="closedChartStats">
+            <div class="stat-item">
+              <span class="stat-label">평균 실거래가</span>
+              <span class="stat-val highlight-orange">-</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">최저 ~ 최고</span>
+              <span class="stat-val">-</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">실거래 표본</span>
+              <span class="stat-val">0건</span>
+            </div>
+          </div>
+          <div id="closedChartContainer" class="chart-svg-wrap">
+            <div class="chart-empty">검색 후 거래완료 데이터가 수집되면<br/>기간별 실거래가 그래프가 표시됩니다.</div>
+          </div>
+        </div>
+
+        <!-- 2. 판매중 호가 그래프 -->
+        <div class="chart-panel">
+          <div class="chart-panel-header">
+            <div class="chart-panel-title">
+              <span>📈 현재 호가 추이 그래프</span>
+              <span style="font-size: 0.75rem; font-weight: 600; color: #1967d2; background: #e8f0fe; padding: 2px 7px; border-radius: 999px;">현재 판매중</span>
+            </div>
+            <span style="font-size: 0.74rem; color: var(--text-sub);">점 클릭 시 매물 이동</span>
+          </div>
+          <div class="chart-stats" id="ongoingChartStats">
+            <div class="stat-item">
+              <span class="stat-label">평균 호가</span>
+              <span class="stat-val highlight-blue">-</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">최저 ~ 최고</span>
+              <span class="stat-val">-</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">판매중 표본</span>
+              <span class="stat-val">0건</span>
+            </div>
+          </div>
+          <div id="ongoingChartContainer" class="chart-svg-wrap">
+            <div class="chart-empty">검색 후 현재 판매중 매물의<br/>기간별 호가 그래프가 표시됩니다.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
   </main>
+
+  <div id="chartTooltip" class="chart-tooltip"></div>
 
   <script>
     const REGION_GROUPS = [
@@ -791,6 +1023,330 @@
     const regionSearchInput = document.getElementById('regionSearchInput');
     const regionDropdown = document.getElementById('regionDropdown');
     const customHubListEl = document.getElementById('customHubList');
+
+    const chartRangeSelect = document.getElementById('chartRangeSelect');
+    const chartBucketSelect = document.getElementById('chartBucketSelect');
+    const closedChartStats = document.getElementById('closedChartStats');
+    const closedChartContainer = document.getElementById('closedChartContainer');
+    const ongoingChartStats = document.getElementById('ongoingChartStats');
+    const ongoingChartContainer = document.getElementById('ongoingChartContainer');
+    const chartTooltip = document.getElementById('chartTooltip');
+
+    function formatShortManWon(price) {
+      if (price === null || price === undefined || isNaN(price)) return '-';
+      if (price >= 10000) {
+        const man = price / 10000;
+        return (Number.isInteger(man) ? man : man.toFixed(1)) + '만';
+      }
+      return Number(price).toLocaleString('ko-KR') + '원';
+    }
+
+    function getBucketKeyAndLabel(dateObj, mode) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      const shortY = String(y).slice(-2);
+
+      if (mode === 'month') {
+        return {
+          key: `${y}-${m}`,
+          label: `${shortY}.${m}`,
+          sortTime: new Date(y, dateObj.getMonth(), 1).getTime()
+        };
+      }
+      if (mode === 'week') {
+        const weekNum = Math.ceil(dateObj.getDate() / 7);
+        return {
+          key: `${y}-${m}-W${weekNum}`,
+          label: `${m}월${weekNum}주`,
+          sortTime: new Date(y, dateObj.getMonth(), (weekNum - 1) * 7 + 1).getTime()
+        };
+      }
+      // day
+      return {
+        key: `${y}-${m}-${d}`,
+        label: `${m}/${d}`,
+        sortTime: new Date(y, dateObj.getMonth(), dateObj.getDate()).getTime()
+      };
+    }
+
+    function renderSinglePriceChart({ items, statsEl, containerEl, themeColor, fillId, emptyMessage, labelPrefix }) {
+      if (!items || items.length === 0) {
+        statsEl.innerHTML = `
+          <div class="stat-item">
+            <span class="stat-label">평균 ${labelPrefix}</span>
+            <span class="stat-val">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">최저 ~ 최고</span>
+            <span class="stat-val">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">표본 수</span>
+            <span class="stat-val">0건</span>
+          </div>
+        `;
+        containerEl.innerHTML = `<div class="chart-empty">${emptyMessage}</div>`;
+        return;
+      }
+
+      const prices = items.map(x => x.price);
+      const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+      const minP = Math.min(...prices);
+      const maxP = Math.max(...prices);
+
+      statsEl.innerHTML = `
+        <div class="stat-item">
+          <span class="stat-label">평균 ${labelPrefix}</span>
+          <span class="stat-val" style="color: ${themeColor};">${formatShortManWon(avgPrice)}원</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">최저 ~ 최고</span>
+          <span class="stat-val">${formatShortManWon(minP)} ~ ${formatShortManWon(maxP)}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">표본 수</span>
+          <span class="stat-val">${items.length}건</span>
+        </div>
+      `;
+
+      // 날짜 기준 오름차순 정렬
+      const sorted = [...items].sort((a, b) => a._time - b._time);
+      const minTime = sorted[0]._time;
+      const maxTime = sorted[sorted.length - 1]._time;
+      const spanDays = (maxTime - minTime) / (1000 * 60 * 60 * 24);
+
+      let bucketMode = chartBucketSelect.value;
+      if (bucketMode === 'auto') {
+        if (spanDays > 75) bucketMode = 'month';
+        else if (spanDays > 21) bucketMode = 'week';
+        else bucketMode = 'day';
+      }
+
+      // 기간 버킷 그룹화
+      const bucketMap = new Map();
+      for (const item of sorted) {
+        const b = getBucketKeyAndLabel(new Date(item._time), bucketMode);
+        if (!bucketMap.has(b.key)) {
+          bucketMap.set(b.key, { ...b, items: [] });
+        }
+        bucketMap.get(b.key).items.push(item);
+      }
+
+      const buckets = Array.from(bucketMap.values()).sort((a, b) => a.sortTime - b.sortTime);
+      buckets.forEach((b, idx) => {
+        b.index = idx;
+        b.avgPrice = Math.round(b.items.reduce((s, x) => s + x.price, 0) / b.items.length);
+      });
+
+      const W = 396;
+      const H = 215;
+      const padL = 48;
+      const padR = 16;
+      const padT = 16;
+      const padB = 34;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      const yMinRaw = Math.min(minP, avgPrice);
+      const yMaxRaw = Math.max(maxP, avgPrice);
+      const ySpread = yMaxRaw - yMinRaw || Math.max(yMaxRaw * 0.2, 10000);
+      const yMin = Math.max(0, Math.floor((yMinRaw - ySpread * 0.15) / 10000) * 10000);
+      const yMax = Math.ceil((yMaxRaw + ySpread * 0.15) / 10000) * 10000 || 10000;
+
+      const getXByBucketIdx = (idx) => {
+        if (buckets.length <= 1) return padL + plotW / 2;
+        return padL + (idx / (buckets.length - 1)) * plotW;
+      };
+      const getY = (val) => {
+        if (yMax === yMin) return padT + plotH / 2;
+        return padT + plotH - ((val - yMin) / (yMax - yMin)) * plotH;
+      };
+
+      // Y축 그리드 (4단계)
+      const yTicks = 4;
+      let gridHtml = '';
+      for (let i = 0; i <= yTicks; i++) {
+        const val = yMin + ((yMax - yMin) * i) / yTicks;
+        const y = getY(val);
+        gridHtml += `
+          <line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#f1f3f5" stroke-width="1" />
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#868e96" font-size="10.5">${formatShortManWon(Math.round(val))}</text>
+        `;
+      }
+
+      // 평균선 (점선)
+      const avgY = getY(avgPrice);
+      gridHtml += `
+        <line x1="${padL}" y1="${avgY}" x2="${W - padR}" y2="${avgY}" stroke="${themeColor}" stroke-width="1" stroke-dasharray="4 3" opacity="0.55" />
+      `;
+
+      // X축 기간 라벨 (최대 6개만 균등 표시하여 겹침 방지)
+      let xLabelsHtml = '';
+      const labelStep = Math.max(1, Math.ceil(buckets.length / 6));
+      buckets.forEach((b, idx) => {
+        if (idx % labelStep === 0 || idx === buckets.length - 1) {
+          const x = getXByBucketIdx(idx);
+          xLabelsHtml += `
+            <text x="${x}" y="${H - 10}" text-anchor="middle" fill="#6c757d" font-size="10.5" font-weight="600">${escapeHtml(b.label)}</text>
+          `;
+        }
+      });
+
+      // 기간별 평균 추세선 & 영역
+      const linePoints = buckets.map((b, idx) => `${getXByBucketIdx(idx)},${getY(b.avgPrice)}`).join(' ');
+      let areaHtml = '';
+      if (buckets.length >= 2) {
+        const firstX = getXByBucketIdx(0);
+        const lastX = getXByBucketIdx(buckets.length - 1);
+        const baseY = padT + plotH;
+        areaHtml = `
+          <polygon points="${firstX},${baseY} ${linePoints} ${lastX},${baseY}" fill="url(#${fillId})" />
+          <polyline fill="none" stroke="${themeColor}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="${linePoints}" />
+        `;
+      } else if (buckets.length === 1) {
+        const onlyY = getY(buckets[0].avgPrice);
+        areaHtml = `
+          <line x1="${padL}" y1="${onlyY}" x2="${W - padR}" y2="${onlyY}" stroke="${themeColor}" stroke-width="2" />
+        `;
+      }
+
+      // 개별 매물 점(Scatter Dots)
+      let dotsHtml = '';
+      buckets.forEach((b, bIdx) => {
+        const baseX = getXByBucketIdx(bIdx);
+        const countInBucket = b.items.length;
+        b.items.forEach((item, iIdx) => {
+          // 같은 기간 내 여러 매물이 있으면 살짝 좌우 지터(jitter)를 주어 겹침 방지
+          const offset = countInBucket > 1 ? ((iIdx / (countInBucket - 1)) - 0.5) * Math.min(18, plotW / Math.max(2, buckets.length) * 0.5) : 0;
+          const cx = Math.max(padL + 4, Math.min(W - padR - 4, baseX + offset));
+          const cy = getY(item.price);
+          const dateStr = new Date(item._time).toLocaleDateString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit' });
+          const tipTitle = escapeHtml(item.title);
+          const tipRegion = escapeHtml(item.dongName || item.hubLabel);
+          const tipPrice = escapeHtml(formatPrice(item.price));
+          const tipStatus = item.status === 'Closed' ? '거래완료' : item.status === 'Reserved' ? '예약중' : '판매중';
+
+          dotsHtml += `
+            <circle
+              class="chart-dot"
+              cx="${cx}"
+              cy="${cy}"
+              r="4.5"
+              fill="#fff"
+              stroke="${themeColor}"
+              stroke-width="2.2"
+              style="cursor: pointer; transition: r 0.12s;"
+              data-href="${escapeHtml(item.href)}"
+              data-title="${tipTitle}"
+              data-region="${tipRegion}"
+              data-price="${tipPrice}"
+              data-date="${escapeHtml(dateStr)}"
+              data-status="${tipStatus}"
+              data-bucket="${escapeHtml(b.label)}"
+              data-bavg="${escapeHtml(formatPrice(b.avgPrice))}"
+            />
+          `;
+        });
+      });
+
+      containerEl.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" style="overflow: visible;">
+          <defs>
+            <linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${themeColor}" stop-opacity="0.24" />
+              <stop offset="100%" stop-color="${themeColor}" stop-opacity="0.01" />
+            </linearGradient>
+          </defs>
+          ${gridHtml}
+          ${areaHtml}
+          ${dotsHtml}
+          ${xLabelsHtml}
+          <text x="${padL}" y="${padT - 5}" fill="#adb5bd" font-size="9.5">Y: 가격(원)</text>
+          <text x="${W - padR}" y="${H - 1}" text-anchor="end" fill="#adb5bd" font-size="9.5">X: 기간(${bucketMode === 'month' ? '월별' : bucketMode === 'week' ? '주별' : '일별'})</text>
+        </svg>
+      `;
+
+      containerEl.querySelectorAll('.chart-dot').forEach(dot => {
+        dot.addEventListener('mouseenter', (e) => {
+          dot.setAttribute('r', '6.5');
+          chartTooltip.innerHTML = `
+            <div style="font-weight: 800; color: #ffd43b; margin-bottom: 2px;">[${dot.dataset.status}] ${dot.dataset.price}</div>
+            <div style="font-weight: 600; margin-bottom: 3px;">${dot.dataset.title}</div>
+            <div style="color: #ced4da; font-size: 0.73rem;">📍 ${dot.dataset.region} · 📅 ${dot.dataset.date}</div>
+            <div style="color: #adb5bd; font-size: 0.71rem; margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 2px;">
+              ${dot.dataset.bucket} 평균: ${dot.dataset.bavg} (클릭 시 이동)
+            </div>
+          `;
+          chartTooltip.style.display = 'block';
+        });
+        dot.addEventListener('mousemove', (e) => {
+          const x = Math.min(window.innerWidth - 250, e.clientX + 14);
+          const y = Math.max(10, e.clientY - 70);
+          chartTooltip.style.left = x + 'px';
+          chartTooltip.style.top = y + 'px';
+        });
+        dot.addEventListener('mouseleave', () => {
+          dot.setAttribute('r', '4.5');
+          chartTooltip.style.display = 'none';
+        });
+        dot.addEventListener('click', () => {
+          if (dot.dataset.href) {
+            window.open(dot.dataset.href, '_blank', 'noopener');
+          }
+        });
+      });
+    }
+
+    function renderPriceCharts() {
+      const exactOnly = chkExactOnly.checked;
+      const minP = minPriceInput.value !== '' ? Number(minPriceInput.value) : null;
+      const maxP = maxPriceInput.value !== '' ? Number(maxPriceInput.value) : null;
+      const rangeDays = chartRangeSelect.value === 'all' ? null : Number(chartRangeSelect.value);
+      const cutoffTime = rangeDays ? (Date.now() - rangeDays * 24 * 60 * 60 * 1000) : 0;
+
+      // 그래프용 베이스 필터 (삽니다 글 제외, 유효 가격(>0) 보유, 좌측 카드의 '예약중/판매완료 제외' 체크 여부와 무관하게 실거래 그래프는 유지)
+      const validForChart = allArticles
+        .filter(a => {
+          if (selectedGroup !== '전체' && a.hubGroup !== selectedGroup) return false;
+          if (exactOnly && !a.isExactMatch) return false;
+          if (a.isBuyingPost) return false;
+          if (!a.price || a.price <= 0) return false;
+          if (minP !== null && a.price < minP) return false;
+          if (maxP !== null && a.price > maxP) return false;
+          const t = new Date(a.boostedAt || a.createdAt || 0).getTime();
+          if (!t || isNaN(t)) return false;
+          if (cutoffTime && t < cutoffTime) return false;
+          return true;
+        })
+        .map(a => ({
+          ...a,
+          _time: new Date(a.boostedAt || a.createdAt).getTime()
+        }));
+
+      const closedItems = validForChart.filter(a => a.status !== 'Ongoing');
+      const ongoingItems = validForChart.filter(a => a.status === 'Ongoing');
+
+      renderSinglePriceChart({
+        items: closedItems,
+        statsEl: closedChartStats,
+        containerEl: closedChartContainer,
+        themeColor: '#ff6f0f',
+        fillId: 'gradClosed',
+        emptyMessage: '조건에 해당하는 거래완료/예약중 실거래 표본이 없습니다.',
+        labelPrefix: '실거래가'
+      });
+
+      renderSinglePriceChart({
+        items: ongoingItems,
+        statsEl: ongoingChartStats,
+        containerEl: ongoingChartContainer,
+        themeColor: '#1967d2',
+        fillId: 'gradOngoing',
+        emptyMessage: '조건에 해당하는 현재 판매중 호가 표본이 없습니다.',
+        labelPrefix: '호가'
+      });
+    }
 
     function formatPrice(price) {
       if (price === null || price === undefined || isNaN(price)) return '가격 미정';
@@ -879,6 +1435,7 @@
     function renderAll() {
       renderRegionTabs();
       if (!currentKeyword) return;
+      renderPriceCharts();
 
       const exactCount = allArticles.filter(a => a.isExactMatch).length;
       exactCountHint.textContent = `(${exactCount}건 / 전체 ${allArticles.length}건)`;
@@ -1192,7 +1749,7 @@
       }
     });
 
-    [chkExactOnly, chkExcludeBuy, chkOnlyOnSale, chkInstantOnly, sortSelect].forEach(el => {
+    [chkExactOnly, chkExcludeBuy, chkOnlyOnSale, chkInstantOnly, sortSelect, chartRangeSelect, chartBucketSelect].forEach(el => {
       el.addEventListener('change', renderAll);
     });
     [minPriceInput, maxPriceInput].forEach(el => {
