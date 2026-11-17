@@ -1,6 +1,11 @@
 {
   "version": 2,
   "regions": ["hnd1"],
+  "functions": {
+    "api/search.js": {
+      "maxDuration": 60
+    }
+  },
   "redirects": [
     {
       "source": "/:path*",

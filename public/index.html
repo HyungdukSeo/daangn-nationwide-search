@@ -1766,7 +1766,7 @@
             { id: '2', name: '서울 도심·서부·서남권 (8곳)' },
             { id: '3', name: '경기 남부·동남권 (10곳)' },
             { id: '4', name: '경기 서부·북부권 (11곳)' },
-            { id: '5', name: '인천광역시 (3곳)' },
+            { id: '5', name: '인천광역시 (5곳)' },
             { id: '6', name: '충청·대전·세종 (8곳)' },
             { id: '7', name: '부산·울산·경남 (9곳)' },
             { id: '8', name: '대구·경북 (6곳)' },
@@ -1784,20 +1784,30 @@
               params.set('customHubs', JSON.stringify(customHubs));
             }
 
-            try {
-              const res = await fetch(`/api/search?${params.toString()}`);
-              if (res.ok && myToken === activeSearchToken) {
-                const data = await res.json();
-                mergeArticlesIntoMap(prevMap, data.articles);
-                sessionKeywordCache.set(cacheKey, prevMap);
-                allArticles = Array.from(prevMap.values());
-                if (allArticles.some(a => a.isExactMatch)) {
-                  chkExactOnly.checked = true;
+            let fetchSuccess = false;
+            for (let retry = 0; retry < 2 && !fetchSuccess; retry++) {
+              try {
+                const res = await fetch(`/api/search?${params.toString()}`);
+                if (res.ok && myToken === activeSearchToken) {
+                  const data = await res.json();
+                  mergeArticlesIntoMap(prevMap, data.articles);
+                  sessionKeywordCache.set(cacheKey, prevMap);
+                  allArticles = Array.from(prevMap.values());
+                  if (allArticles.some(a => a.isExactMatch)) {
+                    chkExactOnly.checked = true;
+                  }
+                  renderAll();
+                  fetchSuccess = true;
+                } else if (!res.ok && retry === 0) {
+                  await new Promise(r => setTimeout(r, 800));
                 }
-                renderAll();
+              } catch (fetchErr) {
+                if (retry === 0) {
+                  await new Promise(r => setTimeout(r, 800));
+                } else {
+                  console.warn(`Shard ${s.id} fetch error:`, fetchErr);
+                }
               }
-            } catch (fetchErr) {
-              console.warn(`Shard ${s.id} fetch error:`, fetchErr);
             }
 
             // 다음 권역이 남아있는 경우 3초간 텀을 둠 (사용자 요청: 3초 텀 순차 조회)
