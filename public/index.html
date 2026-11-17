@@ -562,7 +562,7 @@
       <div class="top-bar">
         <a href="/" class="brand">
           <span>🥕 당근 전국 통합 검색</span>
-          <span class="brand-badge">전국 42개 광역거점 + 전국택배 동시 조회</span>
+          <span class="brand-badge">전국 12개 광역권 + 전국택배 통합 조회</span>
         </a>
         <div style="font-size: 0.84rem; color: var(--text-sub);">
           지역 제한 없이 전국의 당근 매물을 한 번에 모아봅니다
@@ -631,7 +631,7 @@
     <!-- 특정 동네 추가 바 -->
     <div class="custom-hub-bar">
       <div class="custom-hub-list" id="customHubList">
-        <span style="color: var(--text-sub); font-weight: 500;">📍 기본 42개 전국 광역거점 외에 추가로 검색할 동네:</span>
+        <span style="color: var(--text-sub); font-weight: 500;">📍 기본 12개 전국 광역거점 외에 추가로 검색할 동네:</span>
         <span id="noCustomHubText" style="color: #adb5bd;">없음 (우측에서 동/읍/면 추가 가능)</span>
       </div>
       <div class="add-region-wrap">
@@ -675,6 +675,7 @@
     let currentKeyword = '';
     let selectedGroup = '전체';
     let customHubs = [];
+    const sessionKeywordCache = new Map();
 
     const searchForm = document.getElementById('searchForm');
     const searchInput = document.getElementById('searchInput');
@@ -908,11 +909,19 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
 
-        allArticles = data.articles || [];
-        elapsedText.textContent = `⚡ ${data.searchedHubCount}개 지역 거점 + 전국택배 통합 조회 (${(data.elapsedMs / 1000).toFixed(1)}초 소요)`;
+        const cacheKey = q.toLowerCase();
+        const prevMap = sessionKeywordCache.get(cacheKey) || new Map();
+        for (const item of (data.articles || [])) {
+          prevMap.set(item.id, item);
+        }
+        sessionKeywordCache.set(cacheKey, prevMap);
+        allArticles = Array.from(prevMap.values());
+
+        const exactMatchCount = allArticles.filter(a => a.isExactMatch).length;
+        elapsedText.textContent = `⚡ ${data.searchedHubCount}개 광역권 + 전국택배 통합 조회 (${(data.elapsedMs / 1000).toFixed(1)}초 소요)`;
 
         // 정확 일치 매물이 1건 이상 있으면 정확 일치 필터 켜기, 0건이면 자동으로 전체 보기
-        if (data.exactMatchCount > 0) {
+        if (exactMatchCount > 0) {
           chkExactOnly.checked = true;
         }
 
