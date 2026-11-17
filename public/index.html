@@ -152,6 +152,14 @@
       background: var(--primary-hover);
     }
 
+    .search-btn.btn-stop {
+      background: #e03131;
+    }
+
+    .search-btn.btn-stop:hover {
+      background: #c92a2a;
+    }
+
     .search-btn:active {
       transform: scale(0.98);
     }
@@ -1711,6 +1719,29 @@
       return addedCount;
     }
 
+    let isSearching = false;
+    let currentAbortController = null;
+
+    function stopSearch() {
+      if (!isSearching) return;
+      activeSearchToken++;
+      if (currentAbortController) {
+        try { currentAbortController.abort(); } catch {}
+        currentAbortController = null;
+      }
+      isSearching = false;
+      searchBtn.classList.remove('btn-stop');
+      searchBtn.textContent = '검색';
+      searchBtn.disabled = false;
+      if (stateContainer.querySelector('.spinner')) {
+        stateContainer.innerHTML = '';
+      }
+      elapsedText.innerHTML = `⏹️ <strong>탐색이 중단되었습니다.</strong> (현재까지 수집된 총 <strong>${allArticles.length}건</strong> 유지)`;
+      if (allArticles.length > 0) {
+        renderAll();
+      }
+    }
+
     async function performSearch(keyword) {
       const q = (keyword || '').trim();
       if (!q) return;
@@ -1723,8 +1754,10 @@
         selectedGroup = '전체';
       }
 
-      searchBtn.disabled = true;
-      searchBtn.textContent = '조회 중...';
+      isSearching = true;
+      searchBtn.disabled = false;
+      searchBtn.classList.add('btn-stop');
+      searchBtn.textContent = '중단';
       resultsGrid.innerHTML = '';
       stateContainer.innerHTML = `
         <div class="state-box">
@@ -1735,7 +1768,7 @@
               : `[${escapeHtml(selectedHubLabel)}] 권역 매물 및 과거 내역을 조회하고 있습니다...`}
           </p>
           <p style="margin-top: 6px; font-size: 0.88rem; color: var(--text-sub);">
-            각 지역별 매물이 도착하는 즉시 실시간으로 목록과 시세 그래프에 붙여넣습니다.
+            각 지역별 매물이 도착하는 즉시 실시간으로 목록과 시세 그래프에 붙여넣습니다. (중간에 <strong>[중단]</strong> 버튼을 누르면 언제든 탐색을 멈출 수 있습니다)
           </p>
         </div>
       `;
@@ -1747,7 +1780,8 @@
         if (selectedHubId !== 'all') {
           // 단일 지역 선택 시 즉시 1회 조회
           const params = new URLSearchParams({ q, hubId: selectedHubId });
-          const res = await fetch(`/api/search?${params.toString()}`);
+          currentAbortController = new AbortController();
+          const res = await fetch(`/api/search?${params.toString()}`, { signal: currentAbortController.signal });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
           if (myToken !== activeSearchToken) return;
@@ -1787,7 +1821,9 @@
             let fetchSuccess = false;
             for (let retry = 0; retry < 2 && !fetchSuccess; retry++) {
               try {
-                const res = await fetch(`/api/search?${params.toString()}`);
+                if (myToken !== activeSearchToken) return;
+                currentAbortController = new AbortController();
+                const res = await fetch(`/api/search?${params.toString()}`, { signal: currentAbortController.signal });
                 if (res.ok && myToken === activeSearchToken) {
                   const data = await res.json();
                   mergeArticlesIntoMap(prevMap, data.articles);
@@ -1802,6 +1838,7 @@
                   await new Promise(r => setTimeout(r, 800));
                 }
               } catch (fetchErr) {
+                if (myToken !== activeSearchToken) return;
                 if (retry === 0) {
                   await new Promise(r => setTimeout(r, 800));
                 } else {
@@ -1837,8 +1874,11 @@
         `;
       } finally {
         if (myToken === activeSearchToken) {
-          searchBtn.disabled = false;
+          isSearching = false;
+          searchBtn.classList.remove('btn-stop');
           searchBtn.textContent = '검색';
+          searchBtn.disabled = false;
+          currentAbortController = null;
         }
       }
     }
@@ -1913,9 +1953,21 @@
       });
     }
 
+    searchBtn.addEventListener('click', (e) => {
+      if (isSearching) {
+        e.preventDefault();
+        e.stopPropagation();
+        stopSearch();
+      }
+    });
+
     searchForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      performSearch(searchInput.value);
+      if (isSearching) {
+        stopSearch();
+      } else {
+        performSearch(searchInput.value);
+      }
     });
 
     hubSelect.addEventListener('change', () => {
