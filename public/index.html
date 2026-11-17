@@ -975,6 +975,20 @@
             <div class="chart-empty">검색 후 현재 판매중 매물의<br/>기간별 호가 그래프가 표시됩니다.</div>
           </div>
         </div>
+
+        <!-- 3. 지역(거점)별 평균 시세 비교 그래프 -->
+        <div class="chart-panel">
+          <div class="chart-panel-header">
+            <div class="chart-panel-title">
+              <span>🏙️ 거점·지역별 평균 시세 비교</span>
+              <span style="font-size: 0.75rem; font-weight: 600; color: #7048e8; background: #f3f0ff; padding: 2px 7px; border-radius: 999px;">지역별 평균</span>
+            </div>
+            <span style="font-size: 0.74rem; color: var(--text-sub);">막대 클릭 시 해당 지역 선택</span>
+          </div>
+          <div id="regionChartContainer" class="chart-svg-wrap" style="height: 270px;">
+            <div class="chart-empty">검색 후 지역별 매물이 수집되면<br/>거점별 평균 시세 비교 그래프가 표시됩니다.</div>
+          </div>
+        </div>
       </aside>
     </div>
   </main>
@@ -985,7 +999,8 @@
     const REGION_GROUPS = [
       '전체',
       '서울',
-      '경기·인천',
+      '경기',
+      '인천',
       '충청·대전·세종',
       '부산·울산·경남',
       '대구·경북',
@@ -1030,6 +1045,7 @@
     const closedChartContainer = document.getElementById('closedChartContainer');
     const ongoingChartStats = document.getElementById('ongoingChartStats');
     const ongoingChartContainer = document.getElementById('ongoingChartContainer');
+    const regionChartContainer = document.getElementById('regionChartContainer');
     const chartTooltip = document.getElementById('chartTooltip');
 
     function formatShortManWon(price) {
@@ -1346,6 +1362,142 @@
         emptyMessage: '조건에 해당하는 현재 판매중 호가 표본이 없습니다.',
         labelPrefix: '호가'
       });
+
+      renderRegionPriceChart();
+    }
+
+    function renderRegionPriceChart() {
+      if (!regionChartContainer) return;
+      const exactOnly = chkExactOnly.checked;
+      const minP = minPriceInput.value !== '' ? Number(minPriceInput.value) : null;
+      const maxP = maxPriceInput.value !== '' ? Number(maxPriceInput.value) : null;
+
+      // 지역별 집계를 위해 전국 매물 기준(가격 유효, 키워드 일치, 삽니다 제외) 필터링
+      const validItems = allArticles.filter(a => {
+        if (exactOnly && !a.isExactMatch) return false;
+        if (a.isBuyingPost) return false;
+        if (!a.price || a.price <= 0) return false;
+        if (minP !== null && a.price < minP) return false;
+        if (maxP !== null && a.price > maxP) return false;
+        return true;
+      });
+
+      if (!validItems.length) {
+        regionChartContainer.innerHTML = '<div class="chart-empty">조건에 해당하는 지역별 매물 데이터가 없습니다.</div>';
+        return;
+      }
+
+      // 주요 거점 권역별 데이터 취합
+      const targetGroups = ['서울', '경기', '인천', '충청·대전·세종', '부산·울산·경남', '대구·경북', '광주·전라', '강원·제주', '전국택배'];
+      const groupData = [];
+
+      for (const g of targetGroups) {
+        const items = validItems.filter(a => a.hubGroup === g);
+        if (!items.length) continue;
+        const prices = items.map(x => x.price);
+        const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+        const closed = items.filter(x => x.status !== 'Ongoing');
+        const ongoing = items.filter(x => x.status === 'Ongoing');
+        const closedAvg = closed.length ? Math.round(closed.reduce((s, x) => s + x.price, 0) / closed.length) : null;
+        const ongoingAvg = ongoing.length ? Math.round(ongoing.reduce((s, x) => s + x.price, 0) / ongoing.length) : null;
+
+        groupData.push({
+          group: g,
+          count: items.length,
+          avg,
+          closedAvg,
+          closedCount: closed.length,
+          ongoingAvg,
+          ongoingCount: ongoing.length
+        });
+      }
+
+      if (!groupData.length) {
+        regionChartContainer.innerHTML = '<div class="chart-empty">지역별 매물 표본이 부족합니다.</div>';
+        return;
+      }
+
+      // 평균 가격 기준 또는 정렬된 순서 유지 (서울 -> 경기 -> 인천 -> ...)
+      const maxAvg = Math.max(...groupData.map(d => d.avg));
+      const rowHeight = 28;
+      const H = Math.max(180, groupData.length * rowHeight + 20);
+      const W = 396;
+      const labelW = 95;
+      const barMaxW = W - labelW - 75;
+
+      let rowsHtml = '';
+      groupData.forEach((d, idx) => {
+        const y = idx * rowHeight + 10;
+        const barW = maxAvg > 0 ? Math.max(6, (d.avg / maxAvg) * barMaxW) : 10;
+        const isCurrentActive = selectedGroup === d.group;
+
+        rowsHtml += `
+          <g class="region-bar-row" data-group="${escapeHtml(d.group)}" style="cursor: pointer;">
+            <text x="${labelW - 8}" y="${y + 16}" text-anchor="end" fill="${isCurrentActive ? '#7048e8' : '#495057'}" font-size="11" font-weight="${isCurrentActive ? '800' : '600'}">
+              ${escapeHtml(d.group)}
+            </text>
+            <rect
+              x="${labelW}"
+              y="${y + 4}"
+              width="${barW}"
+              height="16"
+              rx="4"
+              fill="${isCurrentActive ? '#7048e8' : '#845ef7'}"
+              opacity="${isCurrentActive ? '1' : '0.85'}"
+              style="transition: width 0.3s, fill 0.15s;"
+            />
+            <text x="${labelW + barW + 6}" y="${y + 16}" fill="#212529" font-size="10.5" font-weight="700">
+              ${formatShortManWon(d.avg)}원 <tspan fill="#868e96" font-size="9.5" font-weight="400">(${d.count}건)</tspan>
+            </text>
+          </g>
+        `;
+      });
+
+      regionChartContainer.innerHTML = `
+        <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}px" style="overflow: visible;">
+          ${rowsHtml}
+        </svg>
+      `;
+
+      regionChartContainer.querySelectorAll('.region-bar-row').forEach(row => {
+        const gName = row.dataset.group;
+        const d = groupData.find(x => x.group === gName);
+        if (!d) return;
+
+        row.addEventListener('mouseenter', (e) => {
+          row.querySelector('rect').setAttribute('opacity', '1');
+          chartTooltip.innerHTML = `
+            <div style="font-weight: 800; color: #b197fc; margin-bottom: 2px;">🏙️ [${escapeHtml(d.group)}] 시세 통계</div>
+            <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 4px;">평균가: ${formatPrice(d.avg)} (총 ${d.count}건)</div>
+            <div style="color: #ced4da; font-size: 0.73rem; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 3px;">
+              • 실거래 평균: ${d.closedAvg ? formatPrice(d.closedAvg) + ` (${d.closedCount}건)` : '표본 없음'}<br/>
+              • 현재 호가 평균: ${d.ongoingAvg ? formatPrice(d.ongoingAvg) + ` (${d.ongoingCount}건)` : '표본 없음'}
+            </div>
+            <div style="color: #ffd43b; font-size: 0.7rem; margin-top: 4px;">클릭 시 '${escapeHtml(d.group)}' 매물만 필터링</div>
+          `;
+          chartTooltip.style.display = 'block';
+        });
+
+        row.addEventListener('mousemove', (e) => {
+          const x = Math.min(window.innerWidth - 250, e.clientX + 14);
+          const y = Math.max(10, e.clientY - 70);
+          chartTooltip.style.left = x + 'px';
+          chartTooltip.style.top = y + 'px';
+        });
+
+        row.addEventListener('mouseleave', () => {
+          if (selectedGroup !== d.group) {
+            row.querySelector('rect').setAttribute('opacity', '0.85');
+          }
+          chartTooltip.style.display = 'none';
+        });
+
+        row.addEventListener('click', () => {
+          selectedGroup = d.group;
+          chartTooltip.style.display = 'none';
+          renderAll();
+        });
+      });
     }
 
     function formatPrice(price) {
@@ -1574,11 +1726,11 @@
           <div class="spinner"></div>
           <p style="font-weight: 700; color: var(--text); font-size: 1.05rem;">
             ${selectedHubId === 'all'
-              ? '전국 주요 광역권 및 과거 거래완료 내역을 조회하고 있습니다...'
+              ? '서울·경기·인천 등 전국 주요 거점을 3초 간격으로 순차 탐색하고 있습니다...'
               : `[${escapeHtml(selectedHubLabel)}] 권역 매물 및 과거 내역을 조회하고 있습니다...`}
           </p>
-          <p style="margin-top: 6px; font-size: 0.88rem;">
-            현재 판매중 매물을 먼저 표시한 뒤 과거 거래완료 내역까지 자동 수집합니다.
+          <p style="margin-top: 6px; font-size: 0.88rem; color: var(--text-sub);">
+            각 지역별 매물이 도착하는 즉시 실시간으로 목록과 시세 그래프에 붙여넣습니다.
           </p>
         </div>
       `;
@@ -1586,8 +1738,9 @@
       const cacheKey = `${q.toLowerCase()}::${selectedHubId}`;
       const prevMap = sessionKeywordCache.get(cacheKey) || new Map();
 
-      async function runOnePass() {
+      try {
         if (selectedHubId !== 'all') {
+          // 단일 지역 선택 시 즉시 1회 조회
           const params = new URLSearchParams({ q, hubId: selectedHubId });
           const res = await fetch(`/api/search?${params.toString()}`);
           const data = await res.json();
@@ -1596,59 +1749,69 @@
           mergeArticlesIntoMap(prevMap, data.articles);
           sessionKeywordCache.set(cacheKey, prevMap);
           allArticles = Array.from(prevMap.values());
+          if (allArticles.some(a => a.isExactMatch)) {
+            chkExactOnly.checked = true;
+          }
           renderAll();
         } else {
-          // 당근 서버의 동시 요청 제한(Rate Limit) 및 타임아웃으로 인한 누락을 막기 위해
-          // Wave 1(수도권 13개 핵심거점) -> 화면 즉시 표시 -> Wave 2(지방 8개 핵심거점) 순으로 순차 조회
-          const shards = ['1', '2'];
-          for (const shard of shards) {
+          // 전국 검색: 서울 -> 경기 -> 인천 -> 충청 -> 부울경 -> 대구경북 -> 호남강원제주
+          // 당근 서버의 부하 및 차단을 방지하고 100% 매물을 수집하기 위해 권역별 3초 텀으로 순차 탐색 & 실시간 결과 누적
+          const shards = [
+            { id: '1', name: '서울 강남·동남·동북권 (8곳)' },
+            { id: '2', name: '서울 도심·서부·서남권 (8곳)' },
+            { id: '3', name: '경기 남부·동남권 (10곳)' },
+            { id: '4', name: '경기 서부·북부권 (11곳)' },
+            { id: '5', name: '인천광역시 (3곳)' },
+            { id: '6', name: '충청·대전·세종 (8곳)' },
+            { id: '7', name: '부산·울산·경남 (9곳)' },
+            { id: '8', name: '대구·경북 (6곳)' },
+            { id: '9', name: '광주·전라·강원·제주 (6곳)' }
+          ];
+
+          for (let i = 0; i < shards.length; i++) {
             if (myToken !== activeSearchToken) return;
-            const params = new URLSearchParams({ q, shard });
-            if (shard === '1' && customHubs.length > 0) {
+            const s = shards[i];
+
+            elapsedText.innerHTML = `📡 <strong>[${i + 1}/${shards.length}] ${escapeHtml(s.name)}</strong> 검색 중... (현재 총 ${prevMap.size}건 수집)`;
+
+            const params = new URLSearchParams({ q, shard: s.id });
+            if (s.id === '1' && customHubs.length > 0) {
               params.set('customHubs', JSON.stringify(customHubs));
             }
-            const res = await fetch(`/api/search?${params.toString()}`);
-            if (!res.ok || myToken !== activeSearchToken) continue;
-            const data = await res.json();
-            if (myToken !== activeSearchToken) return;
-            mergeArticlesIntoMap(prevMap, data.articles);
-            sessionKeywordCache.set(cacheKey, prevMap);
-            allArticles = Array.from(prevMap.values());
-            if (allArticles.some(a => a.isExactMatch)) {
-              chkExactOnly.checked = true;
+
+            try {
+              const res = await fetch(`/api/search?${params.toString()}`);
+              if (res.ok && myToken === activeSearchToken) {
+                const data = await res.json();
+                mergeArticlesIntoMap(prevMap, data.articles);
+                sessionKeywordCache.set(cacheKey, prevMap);
+                allArticles = Array.from(prevMap.values());
+                if (allArticles.some(a => a.isExactMatch)) {
+                  chkExactOnly.checked = true;
+                }
+                renderAll();
+              }
+            } catch (fetchErr) {
+              console.warn(`Shard ${s.id} fetch error:`, fetchErr);
             }
-            renderAll();
-          }
-        }
-      }
 
-      try {
-        // 1차 조회 (수도권 -> 지방 순차 조회로 100% 누락 없이 수집)
-        await runOnePass();
-        if (myToken !== activeSearchToken) return;
-
-        if (allArticles.some(a => a.isExactMatch)) {
-          chkExactOnly.checked = true;
-        }
-        renderAll();
-        searchBtn.disabled = false;
-        searchBtn.textContent = '검색';
-
-        // 1차 조회에서 과거 거래완료(Closed) 내역이 아직 적게 들어온 경우, 0.7초 대기 후 1회만 추가 조회하여 과거 내역 확보
-        const currentClosed = allArticles.filter(a => a.status !== 'Ongoing').length;
-        if (currentClosed < 5 && myToken === activeSearchToken) {
-          elapsedText.textContent = `🔄 과거 거래완료 내역 추가 수집 중... (현재 ${allArticles.length}건)`;
-          await new Promise(r => setTimeout(r, 700));
-          if (myToken === activeSearchToken) {
-            await runOnePass();
+            // 다음 권역이 남아있는 경우 3초간 텀을 둠 (사용자 요청: 3초 텀 순차 조회)
+            if (i < shards.length - 1 && myToken === activeSearchToken) {
+              const nextShard = shards[i + 1];
+              for (let count = 3; count > 0; count--) {
+                if (myToken !== activeSearchToken) return;
+                elapsedText.innerHTML = `⏳ <strong>${count}초</strong> 후 다음 거점(<strong>${escapeHtml(nextShard.name)}</strong>) 탐색 시작... (현재 누적 ${allArticles.length}건)`;
+                await new Promise(r => setTimeout(r, 1000));
+              }
+            }
           }
         }
 
         if (myToken === activeSearchToken) {
           const closedTotal = allArticles.filter(a => a.status !== 'Ongoing').length;
-          elapsedText.textContent = selectedHubId === 'all'
-            ? `⚡ 전국 핵심거점 통합 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`
-            : `⚡ ${selectedHubLabel} 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`;
+          elapsedText.innerHTML = selectedHubId === 'all'
+            ? `⚡ <strong>전국 69개 거점 전체 탐색 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`
+            : `⚡ <strong>${escapeHtml(selectedHubLabel)} 조회 완료</strong> (총 <strong>${allArticles.length}건</strong> / 거래완료·예약중 ${closedTotal}건 포함)`;
         }
       } catch (err) {
         if (myToken !== activeSearchToken) return;
