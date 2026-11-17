@@ -1598,32 +1598,32 @@
           allArticles = Array.from(prevMap.values());
           renderAll();
         } else {
-          // 전국 67개 초정밀 거점을 8개 권역 샤드로 나누어 동시에 병렬 호출 (도착하는 순서대로 실시간 화면 렌더링)
-          const shards = ['1', '2', '3', '4', '5', '6', '7', '8'];
-          await Promise.all(
-            shards.map(async (shard) => {
-              const params = new URLSearchParams({ q, shard });
-              if (shard === '1' && customHubs.length > 0) {
-                params.set('customHubs', JSON.stringify(customHubs));
-              }
-              const res = await fetch(`/api/search?${params.toString()}`);
-              if (!res.ok || myToken !== activeSearchToken) return;
-              const data = await res.json();
-              if (myToken !== activeSearchToken) return;
-              mergeArticlesIntoMap(prevMap, data.articles);
-              sessionKeywordCache.set(cacheKey, prevMap);
-              allArticles = Array.from(prevMap.values());
-              if (allArticles.some(a => a.isExactMatch)) {
-                chkExactOnly.checked = true;
-              }
-              renderAll();
-            })
-          );
+          // 당근 서버의 동시 요청 제한(Rate Limit) 및 타임아웃으로 인한 누락을 막기 위해
+          // Wave 1(수도권 13개 핵심거점) -> 화면 즉시 표시 -> Wave 2(지방 8개 핵심거점) 순으로 순차 조회
+          const shards = ['1', '2'];
+          for (const shard of shards) {
+            if (myToken !== activeSearchToken) return;
+            const params = new URLSearchParams({ q, shard });
+            if (shard === '1' && customHubs.length > 0) {
+              params.set('customHubs', JSON.stringify(customHubs));
+            }
+            const res = await fetch(`/api/search?${params.toString()}`);
+            if (!res.ok || myToken !== activeSearchToken) continue;
+            const data = await res.json();
+            if (myToken !== activeSearchToken) return;
+            mergeArticlesIntoMap(prevMap, data.articles);
+            sessionKeywordCache.set(cacheKey, prevMap);
+            allArticles = Array.from(prevMap.values());
+            if (allArticles.some(a => a.isExactMatch)) {
+              chkExactOnly.checked = true;
+            }
+            renderAll();
+          }
         }
       }
 
       try {
-        // 1차 조회 (5개 샤드 동시 병렬 호출 및 도착 즉시 실시간 렌더링)
+        // 1차 조회 (수도권 -> 지방 순차 조회로 100% 누락 없이 수집)
         await runOnePass();
         if (myToken !== activeSearchToken) return;
 
@@ -1634,23 +1634,20 @@
         searchBtn.disabled = false;
         searchBtn.textContent = '검색';
 
-        // 1차 조회에서 과거 거래완료(Closed) 내역이 아직 적게 들어온 경우, 나올 때까지 최대 4회까지 자동 재요청하며 실시간 병합
-        const maxExtraPasses = 4;
-        for (let pass = 1; pass <= maxExtraPasses; pass++) {
-          const currentClosed = allArticles.filter(a => a.status !== 'Ongoing').length;
-          if (currentClosed >= 5 || myToken !== activeSearchToken) {
-            break;
+        // 1차 조회에서 과거 거래완료(Closed) 내역이 아직 적게 들어온 경우, 0.7초 대기 후 1회만 추가 조회하여 과거 내역 확보
+        const currentClosed = allArticles.filter(a => a.status !== 'Ongoing').length;
+        if (currentClosed < 5 && myToken === activeSearchToken) {
+          elapsedText.textContent = `🔄 과거 거래완료 내역 추가 수집 중... (현재 ${allArticles.length}건)`;
+          await new Promise(r => setTimeout(r, 700));
+          if (myToken === activeSearchToken) {
+            await runOnePass();
           }
-          elapsedText.textContent = `🔄 과거 거래완료 내역 수집 중... (${pass}/${maxExtraPasses}회 재시도, 현재 ${allArticles.length}건)`;
-          await new Promise(r => setTimeout(r, 350));
-          if (myToken !== activeSearchToken) break;
-          await runOnePass();
         }
 
         if (myToken === activeSearchToken) {
           const closedTotal = allArticles.filter(a => a.status !== 'Ongoing').length;
           elapsedText.textContent = selectedHubId === 'all'
-            ? `⚡ 전국 67개 거점 통합 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`
+            ? `⚡ 전국 핵심거점 통합 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`
             : `⚡ ${selectedHubLabel} 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`;
         }
       } catch (err) {
