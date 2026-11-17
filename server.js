@@ -44,6 +44,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/search') {
     const keyword = (parsedUrl.searchParams.get('q') || '').trim();
     const hubIdParam = parsedUrl.searchParams.get('hubId');
+    const shardParam = parsedUrl.searchParams.get('shard');
     const customHubsParam = parsedUrl.searchParams.get('customHubs');
     const groupsParam = parsedUrl.searchParams.get('groups');
 
@@ -54,7 +55,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const result = await searchNationwide({ keyword, hubIdParam, customHubsParam, groupsParam });
+      const result = await searchNationwide({ keyword, hubIdParam, shardParam, customHubsParam, groupsParam });
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(result));
     } catch (err) {

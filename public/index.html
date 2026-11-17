@@ -582,7 +582,7 @@
       <div class="top-bar">
         <a href="/" class="brand">
           <span>🥕 당근 전국 통합 검색</span>
-          <span class="brand-badge">전국 20개 광역거점 + 전국택배 통합 조회</span>
+          <span class="brand-badge">전국 38개 핵심거점 + 전국택배 통합 조회</span>
         </a>
         <div style="font-size: 0.84rem; color: var(--text-sub);">
           지역 제한 없이 전국의 당근 매물을 한 번에 모아봅니다
@@ -591,26 +591,44 @@
 
       <form id="searchForm" class="search-row">
         <select id="hubSelect" class="hub-select" aria-label="검색 지역 선택">
-          <option value="all" selected>🌏 전국 (20개 광역거점 전체)</option>
+          <option value="all" selected>🌏 전국 (38개 거점 전체)</option>
           <option value="6035">서울 강남/서초 (역삼동)</option>
-          <option value="6188">서울 송파/강동/광진 (잠실동)</option>
-          <option value="230">서울 마포/강서/서북 (서교동)</option>
-          <option value="355">서울 관악/영등포/구로 (신림동)</option>
-          <option value="6073">서울 노원/성북/동북 (상계동)</option>
-          <option value="1339">경기 분당/성남/용인 (정자동)</option>
-          <option value="1291">경기 수원/화성/동탄/안양 (인계동)</option>
-          <option value="11139">경기 평택/오산/안성 (고덕동)</option>
-          <option value="1568">경기 일산/고양/파주/부천 (대화동)</option>
-          <option value="4470">경기 남양주/구리/하남/의정부 (다산동)</option>
-          <option value="6543">인천 연수/부평/서구/시흥 (송도동)</option>
+          <option value="6188">서울 송파/강동 (잠실동)</option>
+          <option value="230">서울 마포/서대문/은평 (서교동)</option>
+          <option value="6052">서울 강서/양천 (마곡동)</option>
+          <option value="355">서울 관악/동작/구로/영등포 (신림동)</option>
+          <option value="6140">서울 성동/광진/종로/중구 (성수동)</option>
+          <option value="6073">서울 노원/성북/강북/중랑 (상계동)</option>
+          <option value="1404">경기 안양/군포/의왕/과천 (범계동)</option>
+          <option value="1339">경기 분당/성남/용인/광주 (정자동)</option>
+          <option value="1291">경기 수원/광교 (인계동)</option>
+          <option value="4843">경기 동탄/오산/용인남부 (영천동)</option>
+          <option value="1766">경기 화성/서수원/안산 (봉담읍)</option>
+          <option value="11139">경기 평택/안성 (고덕동)</option>
+          <option value="1420">경기 부천/광명/시흥 (중동)</option>
+          <option value="1568">경기 일산/고양/파주/김포 (대화동)</option>
+          <option value="4470">경기 남양주/구리/하남 (다산동)</option>
+          <option value="4656">경기 양주/의정부/포천 (옥정동)</option>
+          <option value="6543">인천 연수/남동 (송도동)</option>
+          <option value="6519">인천 부평/계양/서구 (부평동)</option>
           <option value="2292">충남 천안/아산/당진 (불당동)</option>
-          <option value="5793">대전/세종 (둔산동)</option>
+          <option value="2333">충남 아산/예산/홍성 (배방읍)</option>
+          <option value="5793">대전 서구/중구/동구 (둔산동)</option>
+          <option value="4238">대전 유성/대덕 (봉명동)</option>
+          <option value="6414">세종특별자치시 (다정동)</option>
           <option value="7201">충북 청주/오창/충주 (복대동)</option>
-          <option value="5918">부산/울산/양산/김해 (부전동)</option>
+          <option value="5918">부산 서면/중부/사하 (부전동)</option>
+          <option value="6026">부산 해운대/동래/기장 (우동)</option>
+          <option value="1201">울산 남구/중구/울주 (삼산동)</option>
           <option value="3478">경남 창원/마산/진주 (상남동)</option>
-          <option value="5663">대구/경북(구미·포항·경산) (범어동)</option>
-          <option value="1015">광주/전북(전주)/전남(순천·목포) (치평동)</option>
-          <option value="1925">강원(원주·춘천·강릉) (무실동)</option>
+          <option value="3610">경남 김해/양산 (내외동)</option>
+          <option value="5663">대구 수성/동구/중구/달서 (범어동)</option>
+          <option value="3104">경북 포항/경주/구미 (해도동)</option>
+          <option value="1015">광주/전남(순천·여수·목포) (치평동)</option>
+          <option value="6941">전북 전주/익산/군산 (효자동)</option>
+          <option value="1925">강원 원주/횡성 (무실동)</option>
+          <option value="1898">강원 춘천/홍천 (퇴계동)</option>
+          <option value="1973">강원 강릉/속초/동해 (교동)</option>
           <option value="3835">제주 제주시/서귀포 (노형동)</option>
         </select>
         <div class="search-input-wrap">
@@ -977,58 +995,74 @@
         </div>
       `;
 
-      const params = new URLSearchParams({ q });
-      if (selectedHubId !== 'all') {
-        params.set('hubId', selectedHubId);
-      } else if (customHubs.length > 0) {
-        params.set('customHubs', JSON.stringify(customHubs));
-      }
-
       const cacheKey = `${q.toLowerCase()}::${selectedHubId}`;
       const prevMap = sessionKeywordCache.get(cacheKey) || new Map();
 
-      try {
-        // 1차 조회 (판매중 매물 + 1차 과거 내역 즉시 렌더링)
-        const res = await fetch(`/api/search?${params.toString()}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
-        if (myToken !== activeSearchToken) return;
+      async function runOnePass() {
+        if (selectedHubId !== 'all') {
+          const params = new URLSearchParams({ q, hubId: selectedHubId });
+          const res = await fetch(`/api/search?${params.toString()}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
+          if (myToken !== activeSearchToken) return;
+          mergeArticlesIntoMap(prevMap, data.articles);
+          sessionKeywordCache.set(cacheKey, prevMap);
+          allArticles = Array.from(prevMap.values());
+          renderAll();
+        } else {
+          // 전국 38개 거점을 5개 권역 샤드로 나누어 동시에 병렬 호출 (도착하는 순서대로 실시간 화면 렌더링)
+          const shards = ['1', '2', '3', '4', '5'];
+          await Promise.all(
+            shards.map(async (shard) => {
+              const params = new URLSearchParams({ q, shard });
+              if (shard === '1' && customHubs.length > 0) {
+                params.set('customHubs', JSON.stringify(customHubs));
+              }
+              const res = await fetch(`/api/search?${params.toString()}`);
+              if (!res.ok || myToken !== activeSearchToken) return;
+              const data = await res.json();
+              if (myToken !== activeSearchToken) return;
+              mergeArticlesIntoMap(prevMap, data.articles);
+              sessionKeywordCache.set(cacheKey, prevMap);
+              allArticles = Array.from(prevMap.values());
+              if (allArticles.some(a => a.isExactMatch)) {
+                chkExactOnly.checked = true;
+              }
+              renderAll();
+            })
+          );
+        }
+      }
 
-        mergeArticlesIntoMap(prevMap, data.articles);
-        sessionKeywordCache.set(cacheKey, prevMap);
-        allArticles = Array.from(prevMap.values());
+      try {
+        // 1차 조회 (5개 샤드 동시 병렬 호출 및 도착 즉시 실시간 렌더링)
+        await runOnePass();
+        if (myToken !== activeSearchToken) return;
 
         if (allArticles.some(a => a.isExactMatch)) {
           chkExactOnly.checked = true;
         }
-
         renderAll();
         searchBtn.disabled = false;
         searchBtn.textContent = '검색';
 
-        // 1차 조회에서 과거 거래완료(Closed) 내역이 아직 안 나온 경우, 나올 때까지 최대 5회까지 자동 재요청하며 실시간 병합 (나오는 즉시 중단)
-        const maxExtraPasses = 5;
+        // 1차 조회에서 과거 거래완료(Closed) 내역이 아직 적게 들어온 경우, 나올 때까지 최대 4회까지 자동 재요청하며 실시간 병합
+        const maxExtraPasses = 4;
         for (let pass = 1; pass <= maxExtraPasses; pass++) {
           const currentClosed = allArticles.filter(a => a.status !== 'Ongoing').length;
           if (currentClosed >= 5 || myToken !== activeSearchToken) {
-            break; // 과거 거래완료 내역이 확보되면 즉시 반복 중단
+            break;
           }
           elapsedText.textContent = `🔄 과거 거래완료 내역 수집 중... (${pass}/${maxExtraPasses}회 재시도, 현재 ${allArticles.length}건)`;
-          await new Promise(r => setTimeout(r, 400));
+          await new Promise(r => setTimeout(r, 350));
           if (myToken !== activeSearchToken) break;
-
-          const extraRes = await fetch(`/api/search?${params.toString()}`);
-          if (!extraRes.ok || myToken !== activeSearchToken) break;
-          const extraData = await extraRes.json();
-          mergeArticlesIntoMap(prevMap, extraData.articles);
-          allArticles = Array.from(prevMap.values());
-          renderAll();
+          await runOnePass();
         }
 
         if (myToken === activeSearchToken) {
           const closedTotal = allArticles.filter(a => a.status !== 'Ongoing').length;
           elapsedText.textContent = selectedHubId === 'all'
-            ? `⚡ 전국 통합 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`
+            ? `⚡ 전국 38개 거점 통합 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`
             : `⚡ ${selectedHubLabel} 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`;
         }
       } catch (err) {

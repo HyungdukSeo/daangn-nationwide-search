@@ -40,6 +40,7 @@ exports.handler = async (event) => {
       const result = await searchNationwide({
         keyword,
         hubIdParam: params.hubId,
+        shardParam: params.shard,
         customHubsParam: params.customHubs,
         groupsParam: params.groups
       });

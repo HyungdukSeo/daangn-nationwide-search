@@ -7,6 +7,7 @@ module.exports = async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const keyword = (url.searchParams.get('q') || '').trim();
   const hubIdParam = url.searchParams.get('hubId');
+  const shardParam = url.searchParams.get('shard');
   const customHubsParam = url.searchParams.get('customHubs');
   const groupsParam = url.searchParams.get('groups');
 
@@ -17,7 +18,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const result = await searchNationwide({ keyword, hubIdParam, customHubsParam, groupsParam });
+    const result = await searchNationwide({ keyword, hubIdParam, shardParam, customHubsParam, groupsParam });
     res.statusCode = 200;
     res.end(JSON.stringify(result));
   } catch (err) {
