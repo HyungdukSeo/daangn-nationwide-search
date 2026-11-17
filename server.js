@@ -43,6 +43,7 @@ const server = http.createServer(async (req, res) => {
   // 3. 전국 통합 검색 API
   if (pathname === '/api/search') {
     const keyword = (parsedUrl.searchParams.get('q') || '').trim();
+    const hubIdParam = parsedUrl.searchParams.get('hubId');
     const customHubsParam = parsedUrl.searchParams.get('customHubs');
     const groupsParam = parsedUrl.searchParams.get('groups');
 
@@ -53,7 +54,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const result = await searchNationwide({ keyword, customHubsParam, groupsParam });
+      const result = await searchNationwide({ keyword, hubIdParam, customHubsParam, groupsParam });
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(result));
     } catch (err) {
