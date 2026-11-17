@@ -1,4 +1,17 @@
 {
   "version": 2,
-  "regions": ["icn1"]
+  "regions": ["icn1"],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "daangn-nationwide-search-lby3.vercel.app"
+        }
+      ],
+      "destination": "https://daangn-nationwide-search-smoky.vercel.app/:path*",
+      "permanent": true
+    }
+  ]
 }

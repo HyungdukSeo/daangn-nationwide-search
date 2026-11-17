@@ -1,6 +1,13 @@
 const { searchNationwide } = require('../lib/daangn');
 
 module.exports = async (req, res) => {
+  const host = req.headers.host || '';
+  if (host.includes('daangn-nationwide-search-lby3.vercel.app')) {
+    res.writeHead(308, { 'Location': `https://daangn-nationwide-search-smoky.vercel.app${req.url}` });
+    res.end();
+    return;
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 

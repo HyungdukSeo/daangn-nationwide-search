@@ -6,6 +6,13 @@ const { DEFAULT_HUBS, searchNationwide, searchRegionsByKeyword } = require('./li
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer(async (req, res) => {
+  const host = req.headers.host || '';
+  if (host.includes('daangn-nationwide-search-lby3.vercel.app')) {
+    res.writeHead(308, { 'Location': `https://daangn-nationwide-search-smoky.vercel.app${req.url}` });
+    res.end();
+    return;
+  }
+
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname.replace(/\.js$/, '');
 
