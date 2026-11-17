@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "regions": ["icn1"],
+  "rewrites": [
+    { "source": "/api/search", "destination": "/api/search.js" },
+    { "source": "/api/regions", "destination": "/api/regions.js" },
+    { "source": "/api/hubs", "destination": "/api/hubs.js" }
+  ]
+}

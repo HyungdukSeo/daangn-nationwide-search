@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>당근 전국 통합 검색기</title>
+  <style>
+    :root {
+      --primary: #ff6f0f;
+      --primary-hover: #e85f00;
+      --primary-light: #fff3eb;
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text: #212529;
+      --text-sub: #6c757d;
+      --border: #e9ecef;
+      --badge-exact: #e6f4ea;
+      --badge-exact-text: #137333;
+      --badge-buy: #fce8e6;
+      --badge-buy-text: #c5221f;
+      --badge-instant: #e8f0fe;
+      --badge-instant-text: #1967d2;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* 상단 헤더 */
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    }
+
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .brand-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+
+    /* 검색 폼 */
+    .search-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 13px 18px;
+      font-size: 1.05rem;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255, 111, 15, 0.15);
+    }
+
+    .search-btn {
+      padding: 0 28px;
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--primary);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .search-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .search-btn:active {
+      transform: scale(0.98);
+    }
+
+    .search-btn:disabled {
+      background: #ffa970;
+      cursor: wait;
+    }
+
+    /* 컨트롤 & 필터 바 */
+    .controls-wrap {
+      max-width: 1280px;
+      margin: 16px auto 0;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .region-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .region-tab {
+      padding: 8px 14px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text-sub);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .region-tab:hover {
+      border-color: #ced4da;
+      color: var(--text);
+    }
+
+    .region-tab.active {
+      background: var(--text);
+      color: #fff;
+      border-color: var(--text);
+    }
+
+    .region-tab .count {
+      font-size: 0.76rem;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.07);
+    }
+
+    .region-tab.active .count {
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+    }
+
+    .filter-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .filter-checks {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .check-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .filter-right {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .price-inputs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+
+    .price-inputs input {
+      width: 92px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .sort-select {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    /* 동네 추가 패널 */
+    .custom-hub-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 0.88rem;
+    }
+
+    .custom-hub-list {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .hub-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+    }
+
+    .hub-chip button {
+      border: none;
+      background: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .add-region-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .add-region-input {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      width: 200px;
+    }
+
+    .region-dropdown {
+      position: absolute;
+      top: 38px;
+      right: 0;
+      width: 280px;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      z-index: 200;
+      display: none;
+    }
+
+    .region-dropdown.open {
+      display: block;
+    }
+
+    .region-option {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-bottom: 1px solid #f1f3f5;
+    }
+
+    .region-option:hover {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* 상태 요약 바 */
+    .summary-bar {
+      max-width: 1280px;
+      margin: 14px auto 8px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    .summary-bar strong {
+      color: var(--text);
+    }
+
+    /* 매물 그리드 */
+    main {
+      max-width: 1280px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+      border-color: #dee2e6;
+    }
+
+    .card.exact-card {
+      border-color: rgba(255, 111, 15, 0.45);
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #f1f3f5;
+      overflow: hidden;
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.25s ease;
+    }
+
+    .card:hover .thumb-wrap img {
+      transform: scale(1.04);
+    }
+
+    .no-thumb {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #adb5bd;
+      font-size: 0.9rem;
+    }
+
+    .badges-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      backdrop-filter: blur(4px);
+    }
+
+    .badge-exact {
+      background: var(--badge-exact);
+      color: var(--badge-exact-text);
+    }
+
+    .badge-buy {
+      background: var(--badge-buy);
+      color: var(--badge-buy-text);
+    }
+
+    .badge-instant {
+      background: var(--badge-instant);
+      color: var(--badge-instant-text);
+    }
+
+    .badge-reserved {
+      background: rgba(33, 37, 41, 0.85);
+      color: #fff;
+    }
+
+    .card-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .region-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--text-sub);
+    }
+
+    .region-tag {
+      font-weight: 600;
+      color: #495057;
+      background: #f1f3f5;
+      padding: 2px 7px;
+      border-radius: 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .card-title {
+      font-size: 0.96rem;
+      font-weight: 600;
+      line-height: 1.38;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-price {
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-top: auto;
+      padding-top: 4px;
+    }
+
+    mark {
+      background: #ffe8cc;
+      color: #d9480f;
+      padding: 0 2px;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+
+    /* 로딩 & 빈 상태 */
+    .state-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-sub);
+      margin-top: 10px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f1f3f5;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="top-bar">
+        <a href="/" class="brand">
+          <span>🥕 당근 전국 통합 검색</span>
+          <span class="brand-badge">전국 42개 광역거점 + 전국택배 동시 조회</span>
+        </a>
+        <div style="font-size: 0.84rem; color: var(--text-sub);">
+          지역 제한 없이 전국의 당근 매물을 한 번에 모아봅니다
+        </div>
+      </div>
+
+      <form id="searchForm" class="search-row">
+        <div class="search-input-wrap">
+          <input
+            id="searchInput"
+            class="search-input"
+            type="text"
+            placeholder="찾으시는 모델명이나 키워드를 입력하세요 (예: QP5W, 맥북 M3, 아이패드 미니7)"
+            value="QP5W"
+            autocomplete="off"
+          />
+        </div>
+        <button id="searchBtn" type="submit" class="search-btn">전국 검색</button>
+      </form>
+    </div>
+  </header>
+
+  <section class="controls-wrap">
+    <!-- 권역 탭 -->
+    <div id="regionTabs" class="region-tabs"></div>
+
+    <!-- 상세 필터 바 -->
+    <div class="filter-bar">
+      <div class="filter-checks">
+        <label class="check-label" title="당근 검색이 자동으로 끼워넣는 유사/추천 매물을 제외하고, 검색어가 제목 또는 본문에 실제로 포함된 매물만 표시합니다.">
+          <input type="checkbox" id="chkExactOnly" checked />
+          <span>🎯 키워드 정확 일치만 보기 <small id="exactCountHint" style="color: var(--primary); font-weight: 700;"></small></span>
+        </label>
+        <label class="check-label">
+          <input type="checkbox" id="chkExcludeBuy" />
+          <span>'삽니다/구합니다' 제외</span>
+        </label>
+        <label class="check-label">
+          <input type="checkbox" id="chkOnlyOnSale" />
+          <span>예약중/판매완료 제외</span>
+        </label>
+        <label class="check-label">
+          <input type="checkbox" id="chkInstantOnly" />
+          <span>⚡ 안심결제(택배) 가능만</span>
+        </label>
+      </div>
+
+      <div class="filter-right">
+        <div class="price-inputs">
+          <span>가격</span>
+          <input type="number" id="minPrice" placeholder="최소(원)" min="0" step="1000" />
+          <span>~</span>
+          <input type="number" id="maxPrice" placeholder="최대(원)" min="0" step="1000" />
+        </div>
+
+        <select id="sortSelect" class="sort-select">
+          <option value="relevance">정확도 + 최신순</option>
+          <option value="latest">최신 등록/끌올순</option>
+          <option value="priceAsc">낮은 가격순</option>
+          <option value="priceDesc">높은 가격순</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 특정 동네 추가 바 -->
+    <div class="custom-hub-bar">
+      <div class="custom-hub-list" id="customHubList">
+        <span style="color: var(--text-sub); font-weight: 500;">📍 기본 42개 전국 광역거점 외에 추가로 검색할 동네:</span>
+        <span id="noCustomHubText" style="color: #adb5bd;">없음 (우측에서 동/읍/면 추가 가능)</span>
+      </div>
+      <div class="add-region-wrap">
+        <input
+          type="text"
+          id="regionSearchInput"
+          class="add-region-input"
+          placeholder="+ 동네 추가 (예: 판교동, 해운대)"
+          autocomplete="off"
+        />
+        <div id="regionDropdown" class="region-dropdown"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="summary-bar" id="summaryBar">
+    <div id="summaryText">검색어를 입력하고 '전국 검색'을 눌러주세요.</div>
+    <div id="elapsedText"></div>
+  </div>
+
+  <main>
+    <div id="stateContainer"></div>
+    <div id="resultsGrid" class="grid"></div>
+  </main>
+
+  <script>
+    const REGION_GROUPS = [
+      '전체',
+      '서울',
+      '경기·인천',
+      '충청·대전·세종',
+      '부산·울산·경남',
+      '대구·경북',
+      '광주·전라',
+      '강원·제주',
+      '전국택배',
+      '추가 지역'
+    ];
+
+    let allArticles = [];
+    let currentKeyword = 'QP5W';
+    let selectedGroup = '전체';
+    let customHubs = [];
+
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const regionTabsEl = document.getElementById('regionTabs');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const stateContainer = document.getElementById('stateContainer');
+    const summaryText = document.getElementById('summaryText');
+    const elapsedText = document.getElementById('elapsedText');
+    const exactCountHint = document.getElementById('exactCountHint');
+
+    const chkExactOnly = document.getElementById('chkExactOnly');
+    const chkExcludeBuy = document.getElementById('chkExcludeBuy');
+    const chkOnlyOnSale = document.getElementById('chkOnlyOnSale');
+    const chkInstantOnly = document.getElementById('chkInstantOnly');
+    const minPriceInput = document.getElementById('minPrice');
+    const maxPriceInput = document.getElementById('maxPrice');
+    const sortSelect = document.getElementById('sortSelect');
+
+    const regionSearchInput = document.getElementById('regionSearchInput');
+    const regionDropdown = document.getElementById('regionDropdown');
+    const customHubListEl = document.getElementById('customHubList');
+
+    function formatPrice(price) {
+      if (price === null || price === undefined || isNaN(price)) return '가격 미정';
+      if (price === 0) return '나눔 / 0원';
+      return Number(price).toLocaleString('ko-KR') + '원';
+    }
+
+    function formatRelativeTime(isoStr) {
+      if (!isoStr) return '';
+      const diffSec = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+      if (diffSec < 60) return '방금 전';
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}분 전`;
+      const diffHour = Math.floor(diffMin / 60);
+      if (diffHour < 24) return `${diffHour}시간 전`;
+      const diffDay = Math.floor(diffHour / 24);
+      if (diffDay < 30) return `${diffDay}일 전`;
+      const diffMonth = Math.floor(diffDay / 30);
+      return `${diffMonth}개월 전`;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function highlightKeyword(text, keyword) {
+      const safe = escapeHtml(text);
+      const tokens = (keyword || '').trim().split(/\s+/).filter(Boolean);
+      if (!tokens.length) return safe;
+      const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      return safe.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>');
+    }
+
+    function getBaseFilteredArticles(ignoreGroup = false) {
+      const exactOnly = chkExactOnly.checked;
+      const excludeBuy = chkExcludeBuy.checked;
+      const onlyOnSale = chkOnlyOnSale.checked;
+      const instantOnly = chkInstantOnly.checked;
+      const minP = minPriceInput.value !== '' ? Number(minPriceInput.value) : null;
+      const maxP = maxPriceInput.value !== '' ? Number(maxPriceInput.value) : null;
+
+      return allArticles.filter(a => {
+        if (!ignoreGroup && selectedGroup !== '전체' && a.hubGroup !== selectedGroup) return false;
+        if (exactOnly && !a.isExactMatch) return false;
+        if (excludeBuy && a.isBuyingPost) return false;
+        if (onlyOnSale && a.status && a.status !== 'Ongoing') return false;
+        if (instantOnly && !a.isInstantBuyAvailable) return false;
+        if (minP !== null && (a.price === null || a.price < minP)) return false;
+        if (maxP !== null && (a.price === null || a.price > maxP)) return false;
+        return true;
+      });
+    }
+
+    function renderRegionTabs() {
+      const baseWithoutGroup = getBaseFilteredArticles(true);
+      const counts = { '전체': baseWithoutGroup.length };
+      for (const g of REGION_GROUPS.slice(1)) {
+        counts[g] = baseWithoutGroup.filter(a => a.hubGroup === g).length;
+      }
+
+      regionTabsEl.innerHTML = REGION_GROUPS
+        .filter(g => g !== '추가 지역' || customHubs.length > 0 || counts[g] > 0)
+        .map(g => `
+          <button
+            type="button"
+            class="region-tab ${selectedGroup === g ? 'active' : ''}"
+            data-group="${g}"
+          >
+            <span>${g}</span>
+            <span class="count">${counts[g] || 0}</span>
+          </button>
+        `).join('');
+
+      regionTabsEl.querySelectorAll('.region-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedGroup = btn.dataset.group;
+          renderAll();
+        });
+      });
+    }
+
+    function renderAll() {
+      const exactCount = allArticles.filter(a => a.isExactMatch).length;
+      exactCountHint.textContent = `(${exactCount}건 / 전체 ${allArticles.length}건)`;
+
+      renderRegionTabs();
+
+      const filtered = getBaseFilteredArticles(false);
+      const sortBy = sortSelect.value;
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'priceAsc') {
+          return (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER);
+        }
+        if (sortBy === 'priceDesc') {
+          return (b.price ?? -1) - (a.price ?? -1);
+        }
+        if (sortBy === 'latest') {
+          return new Date(b.boostedAt || b.createdAt || 0) - new Date(a.boostedAt || a.createdAt || 0);
+        }
+        // relevance
+        if (a.isExactMatch !== b.isExactMatch) return a.isExactMatch ? -1 : 1;
+        if (a.isTitleMatch !== b.isTitleMatch) return a.isTitleMatch ? -1 : 1;
+        return new Date(b.boostedAt || b.createdAt || 0) - new Date(a.boostedAt || a.createdAt || 0);
+      });
+
+      summaryText.innerHTML = `
+        <strong>'${escapeHtml(currentKeyword)}'</strong> 검색 결과:
+        표시 중 <strong>${filtered.length}건</strong>
+        (키워드 정확 일치 ${exactCount}건 / 당근 유사·확장 검색 포함 총 ${allArticles.length}건)
+      `;
+
+      if (filtered.length === 0) {
+        resultsGrid.innerHTML = '';
+        if (allArticles.length > 0 && chkExactOnly.checked && exactCount === 0) {
+          stateContainer.innerHTML = `
+            <div class="state-box">
+              <p style="font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 8px;">
+                '${escapeHtml(currentKeyword)}' 키워드가 정확히 포함된 매물이 없습니다.
+              </p>
+              <p style="margin-bottom: 14px;">
+                당근이 추천한 유사/연관 매물 ${allArticles.length}건을 보시려면 상단의 <strong>'키워드 정확 일치만 보기'</strong> 체크를 해제해 보세요.
+              </p>
+              <button
+                type="button"
+                onclick="document.getElementById('chkExactOnly').checked = false; renderAll();"
+                style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 700; cursor: pointer;"
+              >
+                유사/연관 매물 ${allArticles.length}건 모두 보기
+              </button>
+            </div>
+          `;
+        } else {
+          stateContainer.innerHTML = `
+            <div class="state-box">
+              조건에 맞는 매물이 없습니다. 필터나 권역 탭을 변경해 보세요.
+            </div>
+          `;
+        }
+        return;
+      }
+
+      stateContainer.innerHTML = '';
+      resultsGrid.innerHTML = filtered.map(item => {
+        const regionDisplay = item.dongName
+          ? `${item.hubLabel} · ${item.dongName}`
+          : item.hubLabel;
+
+        return `
+          <a class="card ${item.isExactMatch ? 'exact-card' : ''}" href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer">
+            <div class="thumb-wrap">
+              ${item.thumbnail
+                ? `<img src="${escapeHtml(item.thumbnail)}" alt="${escapeHtml(item.title)}" loading="lazy" />`
+                : `<div class="no-thumb">이미지 없음</div>`
+              }
+              <div class="badges-overlay">
+                ${item.isExactMatch ? `<span class="badge badge-exact">정확일치</span>` : ''}
+                ${item.isBuyingPost ? `<span class="badge badge-buy">삽니다</span>` : ''}
+                ${item.isInstantBuyAvailable ? `<span class="badge badge-instant">안심결제</span>` : ''}
+                ${item.status && item.status !== 'Ongoing' ? `<span class="badge badge-reserved">${escapeHtml(item.status)}</span>` : ''}
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="region-line">
+                <span class="region-tag" title="${escapeHtml(item.hubFullName)}">${escapeHtml(regionDisplay)}</span>
+                <span>${formatRelativeTime(item.boostedAt || item.createdAt)}</span>
+              </div>
+              <div class="card-title">${highlightKeyword(item.title, currentKeyword)}</div>
+              <div class="card-price">${formatPrice(item.price)}</div>
+              <div class="card-desc">${highlightKeyword(item.content || '', currentKeyword)}</div>
+            </div>
+          </a>
+        `;
+      }).join('');
+    }
+
+    async function performSearch(keyword) {
+      const q = (keyword || '').trim();
+      if (!q) return;
+      currentKeyword = q;
+
+      searchBtn.disabled = true;
+      searchBtn.textContent = '전국 조회 중...';
+      resultsGrid.innerHTML = '';
+      stateContainer.innerHTML = `
+        <div class="state-box">
+          <div class="spinner"></div>
+          <p style="font-weight: 700; color: var(--text); font-size: 1.05rem;">
+            전국 주요 지역 거점 및 안심결제 매물을 동시에 조회하고 있습니다...
+          </p>
+          <p style="margin-top: 6px; font-size: 0.88rem;">
+            약 2~3초 정도 소요됩니다.
+          </p>
+        </div>
+      `;
+
+      try {
+        const params = new URLSearchParams({ q });
+        if (customHubs.length > 0) {
+          params.set('customHubs', JSON.stringify(customHubs));
+        }
+
+        const res = await fetch(`/api/search?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
+
+        allArticles = data.articles || [];
+        elapsedText.textContent = `⚡ ${data.searchedHubCount}개 지역 거점 + 전국택배 통합 조회 (${(data.elapsedMs / 1000).toFixed(1)}초 소요)`;
+
+        // 정확 일치 매물이 1건 이상 있으면 정확 일치 필터 켜기, 0건이면 자동으로 전체 보기
+        if (data.exactMatchCount > 0) {
+          chkExactOnly.checked = true;
+        }
+
+        renderAll();
+      } catch (err) {
+        stateContainer.innerHTML = `
+          <div class="state-box" style="color: #c5221f;">
+            오류가 발생했습니다: ${escapeHtml(err.message)}
+          </div>
+        `;
+      } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = '전국 검색';
+      }
+    }
+
+    // 동네 추가 검색
+    let regionTimer = null;
+    regionSearchInput.addEventListener('input', () => {
+      clearTimeout(regionTimer);
+      const val = regionSearchInput.value.trim();
+      if (!val) {
+        regionDropdown.classList.remove('open');
+        return;
+      }
+      regionTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/regions?q=${encodeURIComponent(val)}`);
+          const data = await res.json();
+          const locs = data.locations || [];
+          if (!locs.length) {
+            regionDropdown.innerHTML = `<div class="region-option" style="color:#adb5bd;">검색 결과가 없습니다</div>`;
+          } else {
+            regionDropdown.innerHTML = locs.slice(0, 10).map(l => {
+              const full = [l.name1, l.name2, l.name3].filter(Boolean).join(' ');
+              return `<div class="region-option" data-id="${l.id}" data-name="${escapeHtml(l.name)}" data-full="${escapeHtml(full)}">${escapeHtml(full)}</div>`;
+            }).join('');
+
+            regionDropdown.querySelectorAll('.region-option[data-id]').forEach(opt => {
+              opt.addEventListener('click', () => {
+                const id = opt.dataset.id;
+                const name = opt.dataset.name;
+                const fullName = opt.dataset.full;
+                if (!customHubs.some(h => String(h.id) === String(id))) {
+                  customHubs.push({ id, name, fullName, label: fullName });
+                  renderCustomHubs();
+                  performSearch(searchInput.value);
+                }
+                regionSearchInput.value = '';
+                regionDropdown.classList.remove('open');
+              });
+            });
+          }
+          regionDropdown.classList.add('open');
+        } catch {}
+      }, 250);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.add-region-wrap')) {
+        regionDropdown.classList.remove('open');
+      }
+    });
+
+    function renderCustomHubs() {
+      const existingChips = customHubListEl.querySelectorAll('.hub-chip');
+      existingChips.forEach(c => c.remove());
+      const noText = document.getElementById('noCustomHubText');
+      if (customHubs.length === 0) {
+        noText.style.display = 'inline';
+        return;
+      }
+      noText.style.display = 'none';
+      customHubs.forEach(h => {
+        const chip = document.createElement('span');
+        chip.className = 'hub-chip';
+        chip.innerHTML = `${escapeHtml(h.fullName)} <button type="button" title="삭제">&times;</button>`;
+        chip.querySelector('button').addEventListener('click', () => {
+          customHubs = customHubs.filter(x => String(x.id) !== String(h.id));
+          renderCustomHubs();
+          performSearch(searchInput.value);
+        });
+        customHubListEl.appendChild(chip);
+      });
+    }
+
+    searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      performSearch(searchInput.value);
+    });
+
+    [chkExactOnly, chkExcludeBuy, chkOnlyOnSale, chkInstantOnly, sortSelect].forEach(el => {
+      el.addEventListener('change', renderAll);
+    });
+    [minPriceInput, maxPriceInput].forEach(el => {
+      el.addEventListener('input', renderAll);
+    });
+
+    // 초기 진입 시 QP5W 자동 검색 실행
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('q')) {
+        searchInput.value = urlParams.get('q');
+      }
+      performSearch(searchInput.value);
+    });
+  </script>
+</body>
+</html>

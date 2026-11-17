@@ -1,0 +1,9 @@
+{
+  "name": "daangn-nationwide-search",
+  "version": "1.0.0",
+  "description": "당근(Daangn) 전국 주요 지역 통합 검색 로컬 웹 앱",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
