@@ -926,10 +926,33 @@
       }).join('');
     }
 
+    let activeSearchToken = 0;
+
+    function mergeArticlesIntoMap(targetMap, incomingArticles) {
+      let addedCount = 0;
+      for (const item of (incomingArticles || [])) {
+        if (!targetMap.has(item.id)) {
+          targetMap.set(item.id, item);
+          addedCount++;
+        } else {
+          const existing = targetMap.get(item.id);
+          if (item.dongName && existing.dongName && !existing.dongName.includes(item.dongName)) {
+            existing.dongName = `${existing.dongName} · ${item.dongName}`;
+          }
+          if (existing.sourceType === 'instant-buy' && item.sourceType === 'regional') {
+            item.dongName = existing.dongName || item.dongName;
+            targetMap.set(item.id, item);
+          }
+        }
+      }
+      return addedCount;
+    }
+
     async function performSearch(keyword) {
       const q = (keyword || '').trim();
       if (!q) return;
       currentKeyword = q;
+      const myToken = ++activeSearchToken;
       const selectedHubId = hubSelect.value;
       const selectedHubLabel = hubSelect.options[hubSelect.selectedIndex]?.text || '전국';
 
@@ -945,55 +968,83 @@
           <div class="spinner"></div>
           <p style="font-weight: 700; color: var(--text); font-size: 1.05rem;">
             ${selectedHubId === 'all'
-              ? '전국 12개 주요 광역권 및 안심결제 매물을 동시에 조회하고 있습니다...'
-              : `[${escapeHtml(selectedHubLabel)}] 권역 매물을 조회하고 있습니다...`}
+              ? '전국 주요 광역권 및 과거 거래완료 내역을 조회하고 있습니다...'
+              : `[${escapeHtml(selectedHubLabel)}] 권역 매물 및 과거 내역을 조회하고 있습니다...`}
           </p>
           <p style="margin-top: 6px; font-size: 0.88rem;">
-            ${selectedHubId === 'all' ? '약 2~3초 정도 소요됩니다.' : '잠시만 기다려 주세요.'}
+            현재 판매중 매물을 먼저 표시한 뒤 과거 거래완료 내역까지 자동 수집합니다.
           </p>
         </div>
       `;
 
-      try {
-        const params = new URLSearchParams({ q });
-        if (selectedHubId !== 'all') {
-          params.set('hubId', selectedHubId);
-        } else if (customHubs.length > 0) {
-          params.set('customHubs', JSON.stringify(customHubs));
-        }
+      const params = new URLSearchParams({ q });
+      if (selectedHubId !== 'all') {
+        params.set('hubId', selectedHubId);
+      } else if (customHubs.length > 0) {
+        params.set('customHubs', JSON.stringify(customHubs));
+      }
 
+      const cacheKey = `${q.toLowerCase()}::${selectedHubId}`;
+      const prevMap = sessionKeywordCache.get(cacheKey) || new Map();
+
+      try {
+        // 1차 조회 (판매중 매물 + 1차 과거 내역 즉시 렌더링)
         const res = await fetch(`/api/search?${params.toString()}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '검색 중 오류가 발생했습니다.');
+        if (myToken !== activeSearchToken) return;
 
-        const cacheKey = `${q.toLowerCase()}::${selectedHubId}`;
-        const prevMap = sessionKeywordCache.get(cacheKey) || new Map();
-        for (const item of (data.articles || [])) {
-          prevMap.set(item.id, item);
-        }
+        mergeArticlesIntoMap(prevMap, data.articles);
         sessionKeywordCache.set(cacheKey, prevMap);
         allArticles = Array.from(prevMap.values());
 
-        const exactMatchCount = allArticles.filter(a => a.isExactMatch).length;
-        elapsedText.textContent = selectedHubId === 'all'
-          ? `⚡ ${data.searchedHubCount}개 광역권 + 전국택배 통합 조회 (${(data.elapsedMs / 1000).toFixed(1)}초 소요)`
-          : `⚡ ${selectedHubLabel} 단독 조회 (${(data.elapsedMs / 1000).toFixed(1)}초 소요)`;
-
-        // 정확 일치 매물이 1건 이상 있으면 정확 일치 필터 켜기, 0건이면 자동으로 전체 보기
-        if (exactMatchCount > 0) {
+        if (allArticles.some(a => a.isExactMatch)) {
           chkExactOnly.checked = true;
         }
 
         renderAll();
+        searchBtn.disabled = false;
+        searchBtn.textContent = '검색';
+
+        // 2차~3차 백그라운드 연속 수집 (과거 거래완료 Closed 내역이 모두 나올 때까지 자동 반복)
+        const maxExtraPasses = 2;
+        for (let pass = 1; pass <= maxExtraPasses; pass++) {
+          if (myToken !== activeSearchToken) return;
+          const closedCount = allArticles.filter(a => a.status !== 'Ongoing').length;
+          elapsedText.textContent = `🔄 과거 거래완료 내역 추가 수집 중... (${pass}/${maxExtraPasses}회차, 현재 ${allArticles.length}건)`;
+
+          const extraRes = await fetch(`/api/search?${params.toString()}`);
+          if (!extraRes.ok || myToken !== activeSearchToken) break;
+          const extraData = await extraRes.json();
+          const newlyAdded = mergeArticlesIntoMap(prevMap, extraData.articles);
+          allArticles = Array.from(prevMap.values());
+          renderAll();
+
+          // 더 이상 새로 추가되는 과거 거래완료 매물이 없고 이미 거래완료 내역이 충분히 확보되었으면 조기 종료
+          const newClosedCount = allArticles.filter(a => a.status !== 'Ongoing').length;
+          if (newlyAdded === 0 && newClosedCount > 0 && newClosedCount === closedCount) {
+            break;
+          }
+        }
+
+        if (myToken === activeSearchToken) {
+          const closedTotal = allArticles.filter(a => a.status !== 'Ongoing').length;
+          elapsedText.textContent = selectedHubId === 'all'
+            ? `⚡ 전국 통합 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`
+            : `⚡ ${selectedHubLabel} 조회 완료 (총 ${allArticles.length}건 / 과거 거래완료·예약중 ${closedTotal}건 포함)`;
+        }
       } catch (err) {
+        if (myToken !== activeSearchToken) return;
         stateContainer.innerHTML = `
           <div class="state-box" style="color: #c5221f;">
             오류가 발생했습니다: ${escapeHtml(err.message)}
           </div>
         `;
       } finally {
-        searchBtn.disabled = false;
-        searchBtn.textContent = '검색';
+        if (myToken === activeSearchToken) {
+          searchBtn.disabled = false;
+          searchBtn.textContent = '검색';
+        }
       }
     }
 
