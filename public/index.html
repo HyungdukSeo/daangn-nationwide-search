@@ -2223,14 +2223,25 @@
             }
 
             let fetchSuccess = false;
-            for (let retry = 0; retry < 2 && !fetchSuccess; retry++) {
+            for (let retry = 0; retry < 3 && !fetchSuccess; retry++) {
               try {
                 if (myToken !== activeSearchToken) return;
                 currentAbortController = new AbortController();
                 const res = await fetch(`/api/search?${params.toString()}`, { signal: currentAbortController.signal });
-                if (res.status === 429 || res.status === 403) {
-                  // 속도 제한/차단은 재시도해도 의미가 없으므로 전체 탐색을 중단하고 사유를 보여줌
-                  let msg = '요청이 제한되었습니다. 잠시 후 다시 시도해 주세요.';
+                if (res.status === 429 || res.status === 503) {
+                  const retryHeader = parseInt(res.headers.get('Retry-After') || '', 10);
+                  const waitSec = Math.min(Math.max(Number.isFinite(retryHeader) && retryHeader > 0 ? retryHeader : 3 * (retry + 1), 1), 15);
+                  if (retry < 2) {
+                    for (let c = waitSec; c > 0; c--) {
+                      if (myToken !== activeSearchToken) return;
+                      elapsedText.innerHTML = `⏳ 요청 대기가 걸려 <strong>${c}초</strong> 후 <strong>[${escapeHtml(s.name)}]</strong> 다시 시도합니다... (현재 누적 ${allArticles.length}건)`;
+                      await new Promise(r => setTimeout(r, 1000));
+                    }
+                    continue;
+                  }
+                }
+                if (res.status === 403) {
+                  let msg = '허용되지 않은 출처의 요청입니다.';
                   try { msg = (await res.json()).error || msg; } catch {}
                   const fatal = new Error(msg);
                   fatal.fatal = true;
@@ -2247,14 +2258,14 @@
                   }
                   renderAll();
                   fetchSuccess = true;
-                } else if (!res.ok && retry === 0) {
-                  await new Promise(r => setTimeout(r, 800));
+                } else if (!res.ok && retry < 2) {
+                  await new Promise(r => setTimeout(r, 1000));
                 }
               } catch (fetchErr) {
                 if (myToken !== activeSearchToken) return;
                 if (fetchErr.fatal) throw fetchErr;
-                if (retry === 0) {
-                  await new Promise(r => setTimeout(r, 800));
+                if (retry < 2) {
+                  await new Promise(r => setTimeout(r, 1000));
                 } else {
                   console.warn(`Shard ${s.id} fetch error:`, fetchErr);
                 }
